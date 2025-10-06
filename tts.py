@@ -8,6 +8,7 @@ Nikki Hess (nkhess@umich.edu)
 # built-in modules
 import os
 import time
+import re
 
 # PyPI modules
 from selenium import webdriver
@@ -16,6 +17,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import StaleElementReferenceException
 
 # my modules
 from nikki_util import timestamp_print as tsprint
@@ -28,45 +30,8 @@ CHROMEDRIVER_PATH = os.path.join(os.path.dirname(__file__), "selenium", "chromed
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
-CHAR_LIMIT = 300
-
-class CharLimitError(Exception):
-    """
-    a simple exception to remind users of the char limit.
-
-    args:
-        num_chars (int): the number of characters we have
-    """
-    
-    def __init__(self, num_chars: int):
-        self.message = f"The character limit is {CHAR_LIMIT}! You have {num_chars} characters."
-        super().__init__(self.message)
-
-def open_driver():
-    """
-    Opens a headless Chrome instance with which to do TTS
-
-    Returns:
-        driver (webdriver.Chrome): the created headless chrome instance
-    """
-
-    # options for our chromedriver
-    options = Options()
-    options.binary_location = CUSTOM_CHROME # use a custom chrome binary to match our driver
-    options.add_argument("--headless") # do not the gui
-    options.add_argument("--disable-gpu") # do not the gpu
-    options.add_argument('--no-sandbox') # do not the sandbox
-
-    prefs = {"download.default_directory": DOWNLOADS_DIR}
-    options.add_experimental_option("prefs", prefs) # download to this directory
-
-    # get the chromedriver service
-    service = Service(CHROMEDRIVER_PATH)
-
-    # get the TTS vibes site
-    driver = webdriver.Chrome(service=service, options=options)
-
-    return driver
+CHAR_LIMIT = 200
+MAX_CHAR_REPEAT = 4
 
 def download_wait(directory, timeout, nfiles=None):
     """
@@ -98,6 +63,69 @@ def download_wait(directory, timeout, nfiles=None):
         seconds += 1
     return seconds
 
+def safe_click(driver, xpath, timeout=10, retries=3):
+    """tries to click an element even if it goes stale."""
+    for _ in range(retries):
+        try:
+            elem = WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((By.XPATH, xpath))
+            )
+            elem.click()
+            return True
+        except StaleElementReferenceException:
+            time.sleep(0.2)  # let the dom settle
+    raise StaleElementReferenceException(f"element stayed stale after {retries} tries")
+
+class CharLimitError(Exception):
+    """
+    a simple exception to remind users of the char limit.
+
+    args:
+        num_chars (int): the number of characters we have
+    """
+    
+    def __init__(self, num_chars: int):
+        self.message = f"The character limit is {CHAR_LIMIT}! You have {num_chars} characters."
+        super().__init__(self.message)
+        
+class CharRepeatError(Exception):
+    """
+    a simple exception to remind users of the char limit.
+
+    args:
+        num_chars (int): the number of characters repeated
+    """
+    
+    def __init__(self, num_char_repeat: int):
+        self.message = f"The character repeat limit is {MAX_CHAR_REPEAT}! You have {num_char_repeat} characters."
+        super().__init__(self.message)
+
+def open_driver():
+    """
+    Opens a headless Chrome instance with which to do TTS
+
+    Returns:
+        driver (webdriver.Chrome): the created headless chrome instance
+    """
+
+    # options for our chromedriver
+    options = Options()
+    options.binary_location = CUSTOM_CHROME # use a custom chrome binary to match our driver
+    # options.add_argument("--headless") # do not the gui
+    options.add_argument("--disable-gpu") # do not the gpu
+    options.add_argument('--no-sandbox') # do not the sandbox
+
+    prefs = {"download.default_directory": DOWNLOADS_DIR}
+    options.add_experimental_option("prefs", prefs) # download to this directory
+
+    # get the chromedriver service
+    service = Service(CHROMEDRIVER_PATH)
+
+    # get the TTS vibes site
+    driver = webdriver.Chrome(service=service, options=options)
+
+    return driver
+
 def open_tts_vibes(driver: webdriver.Chrome):
     """
     Opens the TTS Vibes website in the given driver.
@@ -121,6 +149,10 @@ def get_tts_vibes_tts(driver: webdriver.Chrome, input: str):
     """
     if len(input) > CHAR_LIMIT:
         raise CharLimitError(len(input))
+    
+    occur = re.findall(r".{5,}", input)
+    if len(occur) > 0:
+        raise CharRepeatError(len(occur[0]))
 
     # step 1: await text input readiness, then input the text
     text_input = WebDriverWait(driver, 10).until(
@@ -131,11 +163,7 @@ def get_tts_vibes_tts(driver: webdriver.Chrome, input: str):
     
     # step 2: click the generate button
     generate_button_xpath = "//button[contains(@class, 'text-primary-foreground')]//*[contains(., 'Generate')]/.."
-    generate_button = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.XPATH, generate_button_xpath))
-    )
-
-    generate_button.click()
+    safe_click(driver, generate_button_xpath)
 
     # step 3: wait for download + step 4: download
     download_button = WebDriverWait(driver, 15).until(
@@ -154,8 +182,8 @@ if __name__ == "__main__":
 
     open_tts_vibes(driver)
     try:
-        get_tts_vibes_tts(driver, "a" * 301)
-    except CharLimitError as e:
+        get_tts_vibes_tts(driver, "a"*5)
+    except (CharLimitError, CharRepeatError) as e:
         print(e)
 
     driver.quit()
