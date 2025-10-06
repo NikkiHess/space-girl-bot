@@ -67,7 +67,7 @@ def safe_click(driver: webdriver.Chrome, xpath: str, timeout: int=10, retries: i
     """
     tries to click an element even if it goes stale
     
-    args:
+    Args:
         driver (webdriver.Chrome): the webdriver (selenium instance)
         xpath (str): the xpath to follow to get to the element
         timeout (int): the wait time before we give up
@@ -88,7 +88,7 @@ class CharLimitError(Exception):
     """
     a simple exception to remind users of the char limit.
 
-    args:
+    Args:
         num_chars (int): the number of characters we have
     """
     
@@ -100,7 +100,7 @@ class CharRepeatError(Exception):
     """
     a simple exception to remind users of the char limit.
 
-    args:
+    Args:
         num_chars (int): the number of characters repeated
     """
     
@@ -110,7 +110,7 @@ class CharRepeatError(Exception):
 
 def open_driver():
     """
-    Opens a headless Chrome instance with which to do TTS
+    opens a headless Chrome instance with which to do TTS
 
     Returns:
         driver (webdriver.Chrome): the created headless chrome instance
@@ -136,9 +136,9 @@ def open_driver():
 
 def open_tts_vibes(driver: webdriver.Chrome):
     """
-    Opens the TTS Vibes website in the given driver.
+    opens the TTS Vibes website in the given driver.
 
-    Args: 
+    Args:
         driver (webdriver.Chrome): the webdriver to use
     """
 
@@ -146,9 +146,9 @@ def open_tts_vibes(driver: webdriver.Chrome):
 
 def get_tts_vibes_tts(driver: webdriver.Chrome, input: str):
     """
-    Does TTS through the TTS Vibes website
+    does TTS through the TTS Vibes website
 
-    Args: 
+    Args:
         driver (webdriver.Chrome): the webdriver to use
         input (str): the text to speak (max 300 chars)
 
@@ -163,34 +163,38 @@ def get_tts_vibes_tts(driver: webdriver.Chrome, input: str):
         raise CharRepeatError(len(occur[0]))
 
     # step 1: await text input readiness, then input the text
+    tsprint("Awaiting text input availibility...")
+
     text_input = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.ID, "text"))
     )
 
+    tsprint("Inputting text...")
     driver.execute_script("arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles: true}));", text_input, input)
     
     # step 2: click the generate button
     generate_button_xpath = "//button[contains(@class, 'text-primary-foreground')]//*[contains(., 'Generate')]/.."
+    
+    tsprint("Inputting text...")
     safe_click(driver, generate_button_xpath)
 
-    # step 3: wait for download + step 4: download
-    download_button = WebDriverWait(driver, 15).until(
-        EC.element_to_be_clickable(
-            (By.XPATH, "//button[contains(@class, 'bg-secondary') and contains(@class, 'text-secondary-foreground')]//*[contains(., 'Download')]/..")
-        )
-    )
-    download_button.click()
+    # step 3: wait for download button availability + step 4: download
+    download_button_xpath = "//button[contains(@class, 'bg-secondary') and contains(@class, 'text-secondary-foreground')]//*[contains(., 'Download')]/.."
 
+    tsprint("Awaiting download button availability...")
+    safe_click(driver, download_button_xpath)
+
+    tsprint("Downloading TTS file...")
     download_wait(DOWNLOADS_DIR, 10, 1)
-    
-    # TODO: generate, download, and return
+
+    tsprint("Downloaded. Returning...")
 
 if __name__ == "__main__":
     driver = open_driver()
 
     open_tts_vibes(driver)
     try:
-        get_tts_vibes_tts(driver, "a"*5)
+        get_tts_vibes_tts(driver, "I am gay lol")
     except (CharLimitError, CharRepeatError) as e:
         print(e)
 
