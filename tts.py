@@ -158,9 +158,10 @@ def get_tts_vibes_tts(driver: webdriver.Chrome, input: str):
     if len(input) > CHAR_LIMIT:
         raise CharLimitError(len(input))
     
-    occur = re.findall(r".{5,}", input)
-    if len(occur) > 0:
-        raise CharRepeatError(len(occur[0]))
+    matches = [m.group(0) for m in re.finditer(r"(.)\1{4,}", input)]
+
+    if len(matches) > 0:
+        raise CharRepeatError(len(matches[0]))
 
     # step 1: await text input readiness, then input the text
     tsprint("Awaiting text input availibility...")
@@ -194,7 +195,7 @@ if __name__ == "__main__":
 
     open_tts_vibes(driver)
     try:
-        get_tts_vibes_tts(driver, "I am gay lol")
+        get_tts_vibes_tts(driver, "testing aaaaa")
     except (CharLimitError, CharRepeatError) as e:
         print(e)
 
