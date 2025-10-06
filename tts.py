@@ -31,8 +31,15 @@ os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 CHAR_LIMIT = 300
 
 class CharLimitError(Exception):
-    def __init__(self, message=f"The character limit is {CHAR_LIMIT}"):
-        self.message = message
+    """
+    a simple exception to remind users of the char limit.
+
+    args:
+        num_chars (int): the number of characters we have
+    """
+    
+    def __init__(self, num_chars: int):
+        self.message = f"The character limit is {CHAR_LIMIT}! You have {num_chars} characters."
         super().__init__(self.message)
 
 def open_driver():
@@ -112,9 +119,8 @@ def get_tts_vibes_tts(driver: webdriver.Chrome, input: str):
     Returns:
         the downloaded file
     """
-
     if len(input) > CHAR_LIMIT:
-        raise CharLimitError()
+        raise CharLimitError(len(input))
 
     # step 1: await text input readiness, then input the text
     text_input = WebDriverWait(driver, 10).until(
@@ -147,6 +153,9 @@ if __name__ == "__main__":
     driver = open_driver()
 
     open_tts_vibes(driver)
-    get_tts_vibes_tts(driver, "this is a test of the tts system")
+    try:
+        get_tts_vibes_tts(driver, "a" * 301)
+    except CharLimitError as e:
+        print(e)
 
     driver.quit()
