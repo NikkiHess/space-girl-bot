@@ -27,7 +27,7 @@ def open_driver():
     # options for our chromedriver
     options = Options()
     options.binary_location = CUSTOM_CHROME # use a custom chrome binary to match our driver
-    # options.add_argument("--headless") # do not the gui
+    options.add_argument("--headless") # do not the gui
     options.add_argument("--disable-gpu") # do not the gpu
     options.add_argument('--no-sandbox') # do not the sandbox
 
@@ -95,23 +95,22 @@ def get_tts_vibes_tts(driver: webdriver.Chrome, input: str):
     """
 
     # step 1: await text input readiness, then input the text
-    WebDriverWait(driver, 10).until(
+    text_input = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.ID, "text"))
     )
-
-    text_input = driver.find_element(by=By.ID, value="text")
 
     driver.execute_script("arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles: true}));", text_input, input)
     
     # step 2: click the generate button
-    generate_button = driver.find_element(
-        by=By.XPATH, 
-        value="//button[contains(@class, 'text-primary-foreground')]//*[contains(., 'Generate')]/.."
+    generate_button_xpath = "//button[contains(@class, 'text-primary-foreground')]//*[contains(., 'Generate')]/.."
+    generate_button = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.XPATH, generate_button_xpath))
     )
+
     generate_button.click()
 
     # step 3: wait for download + step 4: download
-    download_button = WebDriverWait(driver, 5).until(
+    download_button = WebDriverWait(driver, 15).until(
         EC.element_to_be_clickable(
             (By.XPATH, "//button[contains(@class, 'bg-secondary') and contains(@class, 'text-secondary-foreground')]//*[contains(., 'Download')]/..")
         )
@@ -126,6 +125,61 @@ if __name__ == "__main__":
     driver = open_driver()
 
     open_tts_vibes(driver)
-    get_tts_vibes_tts(driver, "testing")
+
+    bee_movie = """According to all known laws of aviation, there is no way a bee should be able to fly.
+Its wings are too small to get its fat little body off the ground.
+The bee, of course, flies anyway because bees don't care what humans think is impossible.
+Yellow, black. Yellow, black. Yellow, black. Yellow, black.
+Ooh, black and yellow!
+Let's shake it up a little.
+Barry! Breakfast is ready!
+Coming!
+Hang on a second.
+Hello?
+Barry?
+Adam?
+Can you believe this is happening?
+I can't.
+I'll pick you up.
+Looking sharp.
+Use the stairs, Your father paid good money for those.
+Sorry. I'm excited.
+Here's the graduate.
+We're very proud of you, son.
+A perfect report card, all B's.
+Very proud.
+Ma! I got a thing going here.
+You got lint on your fuzz.
+Ow! That's me!
+Wave to us! We'll be in row 118,000.
+Bye!
+Barry, I told you, stop flying in the house!
+Hey, Adam.
+Hey, Barry.
+Is that fuzz gel?
+A little. Special day, graduation.
+Never thought I'd make it.
+Three days grade school, three days high school.
+Those were awkward.
+Three days college. I'm glad I took a day and hitchhiked around The Hive.
+You did come back different.
+Hi, Barry. Artie, growing a mustache? Looks good.
+Hear about Frankie?
+Yeah.
+You going to the funeral?
+No, I'm not going.
+Everybody knows, sting someone, you die.
+Don't waste it on a squirrel.
+Such a hothead.
+I guess he could have just gotten out of the way.
+I love this incorporating an amusement park into our day.
+That's why we don't need vacations.
+Boy, quite a bit of pomp under the circumstances.
+Well, Adam, today we are men.
+We are!
+Bee-men.
+Amen!
+Hallelujah!"""
+    get_tts_vibes_tts(driver, bee_movie)
 
     driver.quit()
