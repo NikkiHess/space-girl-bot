@@ -63,8 +63,16 @@ def download_wait(directory, timeout, nfiles=None):
         seconds += 1
     return seconds
 
-def safe_click(driver, xpath, timeout=10, retries=3):
-    """tries to click an element even if it goes stale."""
+def safe_click(driver: webdriver.Chrome, xpath: str, timeout: int=10, retries: int=3):
+    """
+    tries to click an element even if it goes stale
+    
+    args:
+        driver (webdriver.Chrome): the webdriver (selenium instance)
+        xpath (str): the xpath to follow to get to the element
+        timeout (int): the wait time before we give up
+        retries (int): the max number of retries
+    """
     for _ in range(retries):
         try:
             elem = WebDriverWait(driver, timeout).until(
