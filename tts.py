@@ -1,3 +1,15 @@
+"""
+the module that handles tts interactions (right now just TTSVibes)
+
+author:
+Nikki Hess (nkhess@umich.edu)
+"""
+
+# built-in modules
+import os
+import time
+
+# PyPI modules
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -5,8 +17,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-import os
-import time
+# my modules
+from nikki_util import timestamp_print as tsprint
 
 TTS_VIBES_URL = "https://ttsvibes.com/storyteller"
 
@@ -15,6 +27,13 @@ CHROMEDRIVER_PATH = os.path.join(os.path.dirname(__file__), "selenium", "chromed
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+
+CHAR_LIMIT = 300
+
+class CharLimitError(Exception):
+    def __init__(self, message=f"The character limit is {CHAR_LIMIT}"):
+        self.message = message
+        super().__init__(self.message)
 
 def open_driver():
     """
@@ -88,11 +107,14 @@ def get_tts_vibes_tts(driver: webdriver.Chrome, input: str):
 
     Args: 
         driver (webdriver.Chrome): the webdriver to use
-        input (str): the text to speak
+        input (str): the text to speak (max 300 chars)
 
     Returns:
         the downloaded file
     """
+
+    if len(input) > CHAR_LIMIT:
+        raise CharLimitError()
 
     # step 1: await text input readiness, then input the text
     text_input = WebDriverWait(driver, 10).until(
@@ -125,61 +147,6 @@ if __name__ == "__main__":
     driver = open_driver()
 
     open_tts_vibes(driver)
-
-    bee_movie = """According to all known laws of aviation, there is no way a bee should be able to fly.
-Its wings are too small to get its fat little body off the ground.
-The bee, of course, flies anyway because bees don't care what humans think is impossible.
-Yellow, black. Yellow, black. Yellow, black. Yellow, black.
-Ooh, black and yellow!
-Let's shake it up a little.
-Barry! Breakfast is ready!
-Coming!
-Hang on a second.
-Hello?
-Barry?
-Adam?
-Can you believe this is happening?
-I can't.
-I'll pick you up.
-Looking sharp.
-Use the stairs, Your father paid good money for those.
-Sorry. I'm excited.
-Here's the graduate.
-We're very proud of you, son.
-A perfect report card, all B's.
-Very proud.
-Ma! I got a thing going here.
-You got lint on your fuzz.
-Ow! That's me!
-Wave to us! We'll be in row 118,000.
-Bye!
-Barry, I told you, stop flying in the house!
-Hey, Adam.
-Hey, Barry.
-Is that fuzz gel?
-A little. Special day, graduation.
-Never thought I'd make it.
-Three days grade school, three days high school.
-Those were awkward.
-Three days college. I'm glad I took a day and hitchhiked around The Hive.
-You did come back different.
-Hi, Barry. Artie, growing a mustache? Looks good.
-Hear about Frankie?
-Yeah.
-You going to the funeral?
-No, I'm not going.
-Everybody knows, sting someone, you die.
-Don't waste it on a squirrel.
-Such a hothead.
-I guess he could have just gotten out of the way.
-I love this incorporating an amusement park into our day.
-That's why we don't need vacations.
-Boy, quite a bit of pomp under the circumstances.
-Well, Adam, today we are men.
-We are!
-Bee-men.
-Amen!
-Hallelujah!"""
-    get_tts_vibes_tts(driver, bee_movie)
+    get_tts_vibes_tts(driver, "this is a test of the tts system")
 
     driver.quit()
