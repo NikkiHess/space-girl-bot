@@ -1,3 +1,4 @@
 selenium
 py-cord
 py-cord[voice]
+requests

@@ -171,6 +171,7 @@ def get_tts_vibes_tts(driver: webdriver.Chrome, input: str):
     )
 
     tsprint("Inputting text...")
+    # to make sure this goes fast, edit directly via JavaScript
     driver.execute_script("arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles: true}));", text_input, input)
     
     # step 2: click the generate button
@@ -195,7 +196,7 @@ if __name__ == "__main__":
 
     open_tts_vibes(driver)
     try:
-        get_tts_vibes_tts(driver, "testing aaaaa")
+        get_tts_vibes_tts(driver, "I love Neovim")
     except (CharLimitError, CharRepeatError) as e:
         print(e)
 
