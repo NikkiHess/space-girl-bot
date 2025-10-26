@@ -9,6 +9,7 @@ Nikki Hess (nkhess@umich.edu)
 import os
 import time
 import re
+import platform
 
 # PyPI modules
 from selenium import webdriver
@@ -24,8 +25,15 @@ from nikki_util import timestamp_print as tsprint
 
 TTS_VIBES_URL = "https://ttsvibes.com/storyteller"
 
-CUSTOM_CHROME = os.path.join(os.getcwd(), "selenium", "chrome", "chrome.exe")
-CHROMEDRIVER_PATH = os.path.join(os.path.dirname(__file__), "selenium", "chromedriver.exe")
+PLATFORM = platform.system()
+
+if PLATFORM == "Windows":
+    PLATFORM_EXTENSION = "exe"
+elif PLATFORM == "Darwin":
+    PLATFORM_EXTENSION = "app"
+
+CUSTOM_CHROME = os.path.join(os.getcwd(), "selenium", "chrome", f"chrome.{PLATFORM_EXTENSION}")
+CHROMEDRIVER_PATH = os.path.join(os.path.dirname(__file__), "selenium", f"chromedriver.{PLATFORM_EXTENSION}")
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)

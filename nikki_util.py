@@ -8,7 +8,6 @@ Nikki Hess (nkhess@umich.edu)
 """
 
 from datetime import datetime
-import requests
 from pathlib import Path
 
 LOG_FILE = Path("program.log")
