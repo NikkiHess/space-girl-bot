@@ -1,5 +1,5 @@
 # Custom
-selenium/
+depend/*
 *.zip
 config/discord.json
 

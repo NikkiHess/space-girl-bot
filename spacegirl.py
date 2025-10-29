@@ -14,7 +14,7 @@ import discord # pycord
 
 # my modules
 from nikki_util import timestamp_print as tsprint
-import tts
+import tts_driver as ttsd
 
 # load in our token
 CONFIG_PATH = os.path.join("config", "discord.json")
@@ -27,12 +27,15 @@ TOKEN = config.get("token")
 intents = discord.Intents.default()
 intents.voice_states = True
 intents.members = True
+intents.guilds = True
 
 bot = discord.Bot(intents=intents)
 
 @bot.event
 async def on_ready():
     tsprint(f"{bot.user} is now ready!")
+
+    bot.vc = None
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -44,8 +47,9 @@ async def on_voice_state_update(member, before, after):
 # SLASH COMMANDS
 
 @bot.command(description="Does TTS.")
-async def tts(ctx):
-    await ctx.respond("Testing!")
+async def tts_driver(ctx):
+    ttsd.get_tts_vibes_tts(ttsd.driver, "This is a test of the TTS system.")
+    
 
 @bot.command(description="Joins the voice chat you're currently in.")
 async def join(ctx):
