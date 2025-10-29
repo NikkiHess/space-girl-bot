@@ -145,7 +145,7 @@ def open_tts_vibes(driver: webdriver.Chrome):
 
     driver.get(TTS_VIBES_URL)
 
-def get_tts_vibes_tts(driver: webdriver.Chrome, input: str):
+def get_marcus_tts(driver: webdriver.Chrome, input: str):
     """
     does TTS through the TTS Vibes website
 
@@ -197,7 +197,7 @@ if __name__ == "__main__":
 
     open_tts_vibes(driver)
     try:
-        get_tts_vibes_tts(driver, "I love Neovim")
+        get_marcus_tts(driver, "I love Neovim")
     except (CharLimitError, CharRepeatError) as e:
         print(e)
 

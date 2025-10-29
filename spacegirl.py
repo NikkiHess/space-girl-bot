@@ -16,12 +16,8 @@ import discord # pycord
 from nikki_util import timestamp_print as tsprint
 import tts_driver as ttsd
 
-# load in our token
-CONFIG_PATH = os.path.join("config", "discord.json")
-with open(CONFIG_PATH, "r") as f:
-    config = json.load(f)
-
-TOKEN = config.get("token")
+# initialize in main
+CHROMEDRIVER = None
 
 # get intents
 intents = discord.Intents.default()
@@ -47,9 +43,9 @@ async def on_voice_state_update(member, before, after):
 # SLASH COMMANDS
 
 @bot.command(description="Does TTS.")
-async def tts_driver(ctx):
-    ttsd.get_tts_vibes_tts(ttsd.driver, "This is a test of the TTS system.")
-    
+async def tts(ctx):
+    ttsd.get_marcus_tts(CHROMEDRIVER, "This is a test of the TTS system.")
+    bot.vc.play()
 
 @bot.command(description="Joins the voice chat you're currently in.")
 async def join(ctx):
@@ -83,4 +79,15 @@ async def leave(ctx):
     await voice_state.disconnect()
     await ctx.respond("Left voice!")
 
-bot.run(TOKEN)
+if __name__ == "__main__":
+    # load in our token
+    config_path = os.path.join("config", "discord.json")
+    with open(config_path, "r") as f:
+        config = json.load(f)
+
+    # run the bot with that token
+    token = config.get("token")
+    bot.run(token)
+
+    # initiate our chromedriver instance
+    CHROMEDRIVER = ttsd.open_driver()
