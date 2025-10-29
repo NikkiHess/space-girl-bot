@@ -1,7 +1,7 @@
 """
 the module that handles tts interactions (right now just TTSVibes)
 
-author:
+Author:
 Nikki Hess (nkhess@umich.edu)
 """
 
@@ -9,7 +9,7 @@ Nikki Hess (nkhess@umich.edu)
 import os
 import time
 import re
-import platform
+from enum import Enum
 
 # PyPI modules
 from selenium import webdriver
@@ -22,31 +22,30 @@ from selenium.common.exceptions import StaleElementReferenceException
 
 # my modules
 from nikki_util import timestamp_print as tsprint
-
-TTS_VIBES_URL = "https://ttsvibes.com/storyteller"
+from errors import *
 
 CUSTOM_CHROME = os.path.join(os.getcwd(), "depend", "selenium", "chrome", "chrome.exe")
 CHROMEDRIVER_PATH = os.path.join(os.path.dirname(__file__), "depend", "selenium", "chromedriver.exe")
+CHROMEDRIVER_OPEN = None
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
-CHAR_LIMIT = 200
+MAX_CHARS = 200
 MAX_CHAR_REPEAT = 4
 
-def download_wait(directory, timeout, nfiles=None):
+class ChromeDriverSite(Enum):
+    TTS_VIBES = "https://ttsvibes.com/storyteller"
+
+def wait_for_download(directory: int, timeout: int, num_files=None):
     """
-    Wait for downloads to finish with a specified timeout.
+    waits for downloads to finish with a specified timeout.
+    https://stackoverflow.com/questions/34338897/python-selenium-find-out-when-a-download-has-completed
 
-    Args
-    ----
-    directory : str
-        The path to the folder where the files will be downloaded.
-    timeout : int
-        How many seconds to wait until timing out.
-    nfiles : int, defaults to None
-        If provided, also wait for the expected number of files.
-
+    ## Args:
+    - `directory` (str): The path to the folder where the files will be downloaded.
+    - `timeout` (int): How many seconds to wait until timing out.
+    - `num_files` (int): If provided, also wait for the expected number of files.
     """
     seconds = 0
     dl_wait = True
@@ -54,7 +53,7 @@ def download_wait(directory, timeout, nfiles=None):
         time.sleep(1)
         dl_wait = False
         files = os.listdir(directory)
-        if nfiles and len(files) != nfiles:
+        if num_files and len(files) != num_files:
             dl_wait = True
 
         for fname in files:
@@ -67,12 +66,12 @@ def download_wait(directory, timeout, nfiles=None):
 def safe_click(driver: webdriver.Chrome, xpath: str, timeout: int=10, retries: int=3):
     """
     tries to click an element even if it goes stale
-    
-    Args:
-        driver (webdriver.Chrome): the webdriver (selenium instance)
-        xpath (str): the xpath to follow to get to the element
-        timeout (int): the wait time before we give up
-        retries (int): the max number of retries
+
+    ## Args:
+    - `driver` (webdriver.Chrome): the webdriver (selenium instance)
+    - `xpath` (str): the xpath to follow to get to the element
+    - `timeout` (int): the wait time before we give up
+    - `retries` (int): the max number of retries
     """
     for _ in range(retries):
         try:
@@ -85,36 +84,12 @@ def safe_click(driver: webdriver.Chrome, xpath: str, timeout: int=10, retries: i
             time.sleep(0.2)  # let the dom settle
     raise StaleElementReferenceException(f"element stayed stale after {retries} tries")
 
-class CharLimitError(Exception):
-    """
-    a simple exception to remind users of the char limit.
-
-    Args:
-        num_chars (int): the number of characters we have
-    """
-    
-    def __init__(self, num_chars: int):
-        self.message = f"The character limit is {CHAR_LIMIT}! You have {num_chars} characters."
-        super().__init__(self.message)
-        
-class CharRepeatError(Exception):
-    """
-    a simple exception to remind users of the char limit.
-
-    Args:
-        num_chars (int): the number of characters repeated
-    """
-    
-    def __init__(self, num_char_repeat: int):
-        self.message = f"The character repeat limit is {MAX_CHAR_REPEAT}! You have {num_char_repeat} characters."
-        super().__init__(self.message)
-
 def open_driver():
     """
     opens a headless Chrome instance with which to do TTS
 
-    Returns:
-        driver (webdriver.Chrome): the created headless chrome instance
+    ## Returns:
+    - `driver` (webdriver.Chrome): the created headless chrome instance
     """
 
     # options for our chromedriver
@@ -139,30 +114,35 @@ def open_tts_vibes(driver: webdriver.Chrome):
     """
     opens the TTS Vibes website in the given driver.
 
-    Args:
-        driver (webdriver.Chrome): the webdriver to use
+    ## Args:
+    - `driver` (webdriver.Chrome): the webdriver to use
     """
+    global CHROMEDRIVER_OPEN
 
-    driver.get(TTS_VIBES_URL)
+    driver.get(ChromeDriverSite.TTS_VIBES)
+    CHROMEDRIVER_OPEN = ChromeDriverSite.TTS_VIBES
 
 def get_marcus_tts(driver: webdriver.Chrome, input: str):
     """
-    does TTS through the TTS Vibes website
+    downloads Marcus TTS from the TTS Vibes website
 
-    Args:
-        driver (webdriver.Chrome): the webdriver to use
-        input (str): the text to speak (max 300 chars)
-
-    Returns:
-        the downloaded file
+    ## Args:
+    - `driver` (webdriver.Chrome): the webdriver to use
+    - `input` (str): the text to speak (max 300 chars)
     """
-    if len(input) > CHAR_LIMIT:
-        raise CharLimitError(len(input))
+    tsprint("Getting Marcus tts...")
+
+    if(CHROMEDRIVER_OPEN != ChromeDriverSite.TTS_VIBES):
+        tsprint("TTS Vibes was not open. Opening...")
+        open_tts_vibes()
+
+    if len(input) > MAX_CHARS:
+        raise CharLimitError(len(input), MAX_CHARS)
     
     matches = [m.group(0) for m in re.finditer(r"(.)\1{4,}", input)]
 
     if len(matches) > 0:
-        raise CharRepeatError(len(matches[0]))
+        raise CharRepeatError(len(matches[0]), MAX_CHAR_REPEAT)
 
     # step 1: await text input readiness, then input the text
     tsprint("Awaiting text input availibility...")
@@ -188,9 +168,9 @@ def get_marcus_tts(driver: webdriver.Chrome, input: str):
     safe_click(driver, download_button_xpath)
 
     tsprint("Downloading TTS file...")
-    download_wait(DOWNLOADS_DIR, 10, 1)
+    wait_for_download(DOWNLOADS_DIR, 10, 1)
 
-    tsprint("Downloaded. Returning...")
+    tsprint(f"Downloaded to {DOWNLOADS_DIR}")
 
 if __name__ == "__main__":
     driver = open_driver()
