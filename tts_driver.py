@@ -10,6 +10,7 @@ import os
 import time
 import re
 from enum import Enum
+from collections import deque
 
 # PyPI modules
 from selenium import webdriver
@@ -33,6 +34,8 @@ os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
 MAX_CHARS = 200
 MAX_CHAR_REPEAT = 4
+
+TTS_QUEUE = deque()
 
 class ChromeDriverSite(Enum):
     TTS_VIBES = "https://ttsvibes.com/storyteller"
@@ -98,6 +101,7 @@ def open_driver():
     options.add_argument("--headless") # do not the gui
     options.add_argument("--disable-gpu") # do not the gpu
     options.add_argument('--no-sandbox') # do not the sandbox
+    options.add_argument('--blink-settings=imagesEnabled=false')
 
     prefs = {"download.default_directory": DOWNLOADS_DIR}
     options.add_experimental_option("prefs", prefs) # download to this directory
@@ -122,7 +126,7 @@ def open_tts_vibes(driver: webdriver.Chrome):
     CHROMEDRIVER_OPEN = ChromeDriverSite.TTS_VIBES.value
     driver.get(CHROMEDRIVER_OPEN)
 
-def get_marcus_tts(driver: webdriver.Chrome, input: str):
+def download_marcus_tts(driver: webdriver.Chrome, input: str):
     """
     downloads Marcus TTS from the TTS Vibes website
 
@@ -130,9 +134,12 @@ def get_marcus_tts(driver: webdriver.Chrome, input: str):
     - `driver` (webdriver.Chrome): the webdriver to use
     - `input` (str): the text to speak (max 300 chars)
     """
+    global TTS_QUEUE
+
     tsprint("Getting Marcus tts...")
 
-    if(CHROMEDRIVER_OPEN != ChromeDriverSite.TTS_VIBES):
+    print(CHROMEDRIVER_OPEN)
+    if(CHROMEDRIVER_OPEN != ChromeDriverSite.TTS_VIBES.value):
         tsprint("TTS Vibes was not open. Opening...")
         open_tts_vibes(driver)
 
@@ -167,17 +174,24 @@ def get_marcus_tts(driver: webdriver.Chrome, input: str):
     tsprint("Awaiting download button availability...")
     safe_click(driver, download_button_xpath)
 
+    downloads_before = os.listdir(DOWNLOADS_DIR)
+
     tsprint("Downloading TTS file...")
     wait_for_download(DOWNLOADS_DIR, 10, 1)
-
     tsprint(f"Downloaded to {DOWNLOADS_DIR}")
+
+    downloads_after = os.listdir(DOWNLOADS_DIR)
+    change = set(downloads_after) - set(downloads_before)
+
+    filename = change.pop()
+    TTS_QUEUE.append(filename)
 
 if __name__ == "__main__":
     driver = open_driver()
 
     open_tts_vibes(driver)
     try:
-        get_marcus_tts(driver, "I love Neovim")
+        download_marcus_tts(driver, "I love Neovim")
     except (CharLimitError, CharRepeatError) as e:
         print(e)
 
