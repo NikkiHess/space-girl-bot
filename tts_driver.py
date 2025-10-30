@@ -95,7 +95,7 @@ def open_driver():
     # options for our chromedriver
     options = Options()
     options.binary_location = CUSTOM_CHROME # use a custom chrome binary to match our driver
-    # options.add_argument("--headless") # do not the gui
+    options.add_argument("--headless") # do not the gui
     options.add_argument("--disable-gpu") # do not the gpu
     options.add_argument('--no-sandbox') # do not the sandbox
 
@@ -119,8 +119,8 @@ def open_tts_vibes(driver: webdriver.Chrome):
     """
     global CHROMEDRIVER_OPEN
 
-    driver.get(ChromeDriverSite.TTS_VIBES)
-    CHROMEDRIVER_OPEN = ChromeDriverSite.TTS_VIBES
+    CHROMEDRIVER_OPEN = ChromeDriverSite.TTS_VIBES.value
+    driver.get(CHROMEDRIVER_OPEN)
 
 def get_marcus_tts(driver: webdriver.Chrome, input: str):
     """
@@ -134,7 +134,7 @@ def get_marcus_tts(driver: webdriver.Chrome, input: str):
 
     if(CHROMEDRIVER_OPEN != ChromeDriverSite.TTS_VIBES):
         tsprint("TTS Vibes was not open. Opening...")
-        open_tts_vibes()
+        open_tts_vibes(driver)
 
     if len(input) > MAX_CHARS:
         raise CharLimitError(len(input), MAX_CHARS)
