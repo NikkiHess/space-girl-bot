@@ -24,7 +24,7 @@ MAX_LEN = 255 - len("downloads") - len(".mp3")
 
 TTS_QUEUE = deque()
 
-def download_marcus_tts(input: str) -> dict:
+def download_and_queue_marcus_tts(input: str) -> dict:
     """
     downloads Marcus TTS from the TTS Vibes API and adds it to the TTS queue
 
@@ -87,5 +87,5 @@ def download_marcus_tts(input: str) -> dict:
     tsprint(f"Added \"{input}\" to queue.")
 
 if __name__ == "__main__":
-    download_marcus_tts("robert help")
-    download_marcus_tts("i am mildly irritated")
+    download_and_queue_marcus_tts("robert help")
+    download_and_queue_marcus_tts("i am mildly irritated")

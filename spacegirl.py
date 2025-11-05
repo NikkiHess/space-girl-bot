@@ -98,7 +98,7 @@ async def tts(ctx, input: str):
         if VC is None:
             VC = await voice_state.channel.connect(reconnect=False)
         
-        ttsd.download_marcus_tts(CHROMEDRIVER, input)
+        ttsd.download_and_queue_marcus_tts(CHROMEDRIVER, input)
         await ctx.followup.send(content=f"Queued TTS: {input}")
 
 @bot.command(description="Joins the voice chat you're currently in.")
