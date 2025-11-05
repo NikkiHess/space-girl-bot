@@ -110,8 +110,10 @@ async def tts(ctx, input: str):
         if VC is None:
             VC = await voice_state.channel.connect(reconnect=False)
         
-        ttsd.download_and_queue_marcus_tts(input)
-        await ctx.followup.send(content=f"Queued TTS: {input}")
+        was_too_long = ttsd.download_and_queue_marcus_tts(input)
+        await ctx.followup.send(
+            content=f"Queued TTS: {input}\n" + ("Input was trimmed because it was over 300 chars." if was_too_long else "")
+        )
 
 @bot.command(description="Joins the voice chat you're currently in.")
 async def join(ctx):
@@ -169,21 +171,22 @@ async def process_tts_queue():
         case _:
             raise OSNotSupportedError()
     
-    currently_playing = False
-        
-    def after_play():
-        "Resets currently playing"
-        nonlocal currently_playing
-        
-        currently_playing = False
-
-        tsprint("Audio done playing.")
+    def make_after_callback(tts_filename):
+        def after_play(_):  # The `_` is the exception Pycord passes
+            tsprint(f"Audio done playing: {tts_filename}")
+            try:
+                os.remove(tts_filename)
+                tsprint(f"Deleted {tts_filename}")
+            except FileNotFoundError:
+                tsprint(f"File {tts_filename} already deleted")
+        return after_play
 
     while(True):
         if VC is None or not VC.is_connected():
             await asyncio.sleep(0.1)
             continue
 
+        # if there's something in the queue and we're not playing something else, play our first TTS queue item
         if len(ttsd.TTS_QUEUE) > 0 and not VC.is_playing():
             tts_filename = ttsd.TTS_QUEUE.popleft()
 
@@ -194,8 +197,7 @@ async def process_tts_queue():
                 source=tts_filename
             )
 
-            VC.play(tts_audio_source)
-            currently_playing = True
+            VC.play(tts_audio_source, after=make_after_callback(tts_filename))
         else:      
             await asyncio.sleep(0.1)
 
