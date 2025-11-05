@@ -1,8 +1,5 @@
 """
 the module that handles tts interactions (right now just TTSVibes)
-
-Author:
-Nikki Hess (nkhess@umich.edu)
 """
 
 # built-in modules
@@ -87,5 +84,5 @@ def download_and_queue_marcus_tts(input: str) -> dict:
     tsprint(f"Added \"{input}\" to queue.")
 
 if __name__ == "__main__":
-    download_and_queue_marcus_tts("robert help")
-    download_and_queue_marcus_tts("i am mildly irritated")
+    download_and_queue_marcus_tts("lawl")
+    download_and_queue_marcus_tts("hello robert")

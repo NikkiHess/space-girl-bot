@@ -1,5 +1,5 @@
 requests
-selenium
 aiohttp
 py-cord[voice]==2.7.0rc2
 audioop-lts
+certifi

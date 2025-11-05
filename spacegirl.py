@@ -1,14 +1,12 @@
 """
 the main module for space girl bot
-
-Author:
-Nikki Hess (nkhess@umich.edu)
 """
 
 # built-in modules
 import os
 import json
 import asyncio
+import platform
 
 # PyPI modules
 import discord # pycord
@@ -16,10 +14,10 @@ import discord # pycord
 # my modules
 from nikki_util import timestamp_print as tsprint
 import tts_driver as ttsd
+from errors import *
 
-# initialize in main
-CHROMEDRIVER = None
-VC = None
+VC = None # the voice client, initialized in main
+OS_NAME = platform.system() # for platform-dependent Opus loading
 
 # get intents
 intents = discord.Intents.default()
@@ -30,30 +28,44 @@ intents.guilds = True
 bot = discord.Bot(intents=intents)
 
 # BOT EVENTS
-
 @bot.event
 async def on_ready():
     """
-    Declares bot ready, clears VC state, opens driver, loads Opus, and runs TTS Queue handler
+    Declares bot ready, clears VC state, loads Opus (platform dependent), and runs TTS Queue handler
     """
-    global CHROMEDRIVER, VC
+    global VC
 
-    tsprint(f"{bot.user} is now ready!")
     VC = None
-    
-    # initiate our chromedriver instance
-    CHROMEDRIVER = ttsd.open_driver()
 
-    # load opus
-    opus_path = os.path.join("depend", "libopus.dll")
-    discord.opus.load_opus(opus_path)
-
+    # if that didn't work, try loading from /depend
     if not discord.opus.is_loaded():
-        tsprint("Failed to load Opus. This is a problem.")
-    else:
-        tsprint("Loaded opus successfully.")
+        tsprint("Opus not loaded, searching on the system...")
+
+        try:
+            match OS_NAME:
+                case "Windows":
+                    opus_path = os.path.join("depend", "libopus.dll")
+                case "Darwin":
+                    opus_path = "/opt/homebrew/opt/opus/lib/libopus.dylib"
+                case _:
+                    raise OSNotSupportedError()
+                
+            discord.opus.load_opus(opus_path)
+        except OSError:
+            tsprint("Opus not found.")
+            match OS_NAME:
+                case "Windows":
+                    tsprint("Please install Opus to /depend/libopus.dll")
+                case "Darwin":
+                    tsprint("Please install Opus using \"brew install opus\"")
+
+            raise OpusNotFoundError()
+    
+    tsprint("Loaded Opus successfully.")
 
     bot.loop.create_task(process_tts_queue())
+
+    tsprint(f"{bot.user} is now ready!")
 
 @bot.event
 async def on_disconnect():
@@ -98,7 +110,7 @@ async def tts(ctx, input: str):
         if VC is None:
             VC = await voice_state.channel.connect(reconnect=False)
         
-        ttsd.download_and_queue_marcus_tts(CHROMEDRIVER, input)
+        ttsd.download_and_queue_marcus_tts(input)
         await ctx.followup.send(content=f"Queued TTS: {input}")
 
 @bot.command(description="Joins the voice chat you're currently in.")
@@ -144,31 +156,46 @@ async def leave(ctx):
 
 async def process_tts_queue():
     """
-    Processes TTS queue, deleting files as it goes - runs in Pycord event loop
+    Processes TTS queue - runs in Pycord event loop
     """
     global VC
+
+    ffmpeg_path = None
+    match OS_NAME:
+        case "Windows":
+            ffmpeg_path = os.path.join("depend", "libopus.dll")
+        case "Darwin":
+            ffmpeg_path = "/opt/homebrew/bin/ffmpeg"
+        case _:
+            raise OSNotSupportedError()
+    
+    currently_playing = False
+        
+    def after_play():
+        "Resets currently playing"
+        nonlocal currently_playing
+        
+        currently_playing = False
+
+        tsprint("Audio done playing.")
 
     while(True):
         if VC is None or not VC.is_connected():
             await asyncio.sleep(0.1)
             continue
 
-        if len(ttsd.TTS_QUEUE) > 0:
+        if len(ttsd.TTS_QUEUE) > 0 and not VC.is_playing():
             tts_filename = ttsd.TTS_QUEUE.popleft()
-            tts_full_path = os.path.join("downloads", tts_filename)
+
+            tsprint(f"Playing queued TTS {tts_filename}")
+
             tts_audio_source = discord.FFmpegOpusAudio(
-                executable="depend/ffmpeg.exe",
-                source=tts_full_path
+                executable=ffmpeg_path,
+                source=tts_filename
             )
 
-            def after_play(err):
-                if err:
-                    tsprint(f"Error during playback: {err}")
-                if os.path.exists(tts_full_path):
-                    os.remove(tts_full_path)
-                    tsprint(f"Removed TTS file {tts_filename}")
-
-            VC.play(tts_audio_source, after=after_play)
+            VC.play(tts_audio_source)
+            currently_playing = True
         else:      
             await asyncio.sleep(0.1)
 

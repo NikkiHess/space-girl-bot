@@ -2,9 +2,6 @@
 
 """
 just utils for me
-
-Author:
-Nikki Hess (nkhess@umich.edu)
 """
 
 from datetime import datetime
