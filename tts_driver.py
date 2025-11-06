@@ -21,7 +21,7 @@ MAX_LEN = 300
 
 TTS_QUEUE = deque()
 
-def do_tts_replacements(input: str):
+def adjust_pronunciation(input: str):
     """
     Makes various adjustments to input text to make tts sound and function better
 
@@ -33,7 +33,7 @@ def do_tts_replacements(input: str):
     """
     
     for trigger, replacement in tts_replacements.items():
-        input = input.replace(trigger, replacement)
+        input = re.sub(trigger, replacement, input, flags=re.IGNORECASE)
 
     return input
 
@@ -62,7 +62,7 @@ def download_and_queue_marcus_tts(input: str) -> bool:
     filename = re.sub(r'[\\/*?:"<>,|]', "", input)
     filepath = os.path.join("downloads", f"{filename}.mp3")
 
-    input = do_tts_replacements(input)
+    input = adjust_pronunciation(input)
 
     # request from the TTS Vibes API (subject to change)
     url = "https://ttsvibes.com/?/generate"

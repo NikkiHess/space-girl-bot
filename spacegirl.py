@@ -27,6 +27,8 @@ intents.guilds = True
 
 bot = discord.Bot(intents=intents)
 
+# BUG: If you try to make TTS that is too long the bot gets confused and thinks it can play it when TTS Vibes says no.
+
 # BOT EVENTS
 @bot.event
 async def on_ready():
