@@ -12,7 +12,7 @@ import json
 
 # my modules
 from nikki_util import timestamp_print as tsprint
-from pronunciation_dictionary import tts_replacements
+from pronunciation_dictionary import pronunciation
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
@@ -32,8 +32,11 @@ def adjust_pronunciation(input: str):
     - `input` (str): the adjusted input
     """
     
-    for trigger, replacement in tts_replacements.items():
+    for trigger, replacement in pronunciation.items():
         input = re.sub(trigger, replacement, input, flags=re.IGNORECASE)
+
+    if input.lower() == "no":
+        input = "no."
 
     return input
 

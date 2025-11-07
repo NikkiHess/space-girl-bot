@@ -7,9 +7,7 @@ import os
 import json
 import asyncio
 import platform
-import subprocess
-import sys
-import time
+import aiohttp
 
 # PyPI modules
 import discord # pycord
@@ -103,6 +101,18 @@ async def on_voice_state_update(member: discord.Member,
         if after.channel is None:
             VC = None
             tsprint("Bot left VC.")
+
+@bot.event
+async def on_command_error(ctx, error):
+    """
+    Handle uncaught exceptions in the bot
+    """
+
+    if isinstance(error, aiohttp.ClientConnectorDNSError):
+        await ctx.respond("⚠️ Network error: unable to reach Discord. Try again later.")
+    else:
+        # fallback logging
+        print(f"Unhandled error: {error}")
 
 # SLASH COMMANDS
 
