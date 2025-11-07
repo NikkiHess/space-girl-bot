@@ -12,7 +12,7 @@ import json
 
 # my modules
 from nikki_util import timestamp_print as tsprint
-from tts_replacements import tts_replacements
+from pronunciation_dictionary import tts_replacements
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)

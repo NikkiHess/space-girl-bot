@@ -7,6 +7,9 @@ import os
 import json
 import asyncio
 import platform
+import subprocess
+import sys
+import time
 
 # PyPI modules
 import discord # pycord
@@ -28,6 +31,8 @@ intents.guilds = True
 bot = discord.Bot(intents=intents)
 
 # BUG: If you try to make TTS that is too long the bot gets confused and thinks it can play it when TTS Vibes says no.
+# TODO: SQLite on Pi
+# TODO: Server dictionary function
 
 # BOT EVENTS
 @bot.event
@@ -71,8 +76,14 @@ async def on_ready():
 
 @bot.event
 async def on_disconnect():
-    for client in bot.voice_clients:
-        await client.disconnect()
+    """
+    Handles the bot disconnecting from Discord itself. This triggers a bot shut down.
+    The Pi I host on will ultimately fix this by relaunching the process
+    """
+
+    tsprint("Bot disconnected. Exiting.")
+    exit(1)
+
 
 @bot.event
 async def on_voice_state_update(member: discord.Member,
@@ -157,6 +168,10 @@ async def leave(ctx):
     
     await voice_state.disconnect()
     await ctx.respond("Left voice!")
+
+@bot.command(description="A command for testing stuff")
+async def testcommand(ctx):
+    a
 
 async def process_tts_queue():
     """
