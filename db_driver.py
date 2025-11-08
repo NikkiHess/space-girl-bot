@@ -8,8 +8,11 @@ import os.path
 # PyPi
 import sqlite3
 
-DB_PATH = os.path.join("database", "pronunication_dictionary.db")
-CONNECTION = sqlite3.connect(DB_PATH)
+DB_DIR = "database"
+os.makedirs(DB_DIR, exist_ok=True) # create database folder if doesn't exist
+DB_PATH = os.path.join(DB_DIR, "pronunication_dictionary.db")
+
+CONNECTION = sqlite3.connect(DB_PATH, check_same_thread=False)
 CURSOR = CONNECTION.cursor()
 
 def init_db():
@@ -24,14 +27,14 @@ def init_db():
                          );
 
                          CREATE TABLE IF NOT EXISTS voices (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
                             name TEXT UNIQUE NOT NULL
                          );
 
                          CREATE TABLE IF NOT EXISTS translations (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             server_id INTEGER NOT NULL,
-                            voice_id INTEGER_NOT_NULL,
+                            voice_id INTEGER NOT NULL,
                             word TEXT NOT NULL,
                             pronunciation TEXT NOT NULL,
                             FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE,
@@ -79,7 +82,7 @@ def add_translation(guild_id: int, voice_name: str, text: str, pronunciation: st
     voice_id = init_voice(voice_name)
 
     CURSOR.execute("""
-                       INSERT OR REPLACE INTO translations (server_id, voice_id, text, pronuncation)
+                       INSERT OR REPLACE INTO translations (server_id, voice_id, text, pronunciation)
                        VALUES (?, ?, ?, ?)
                    """, (server_id, voice_id, text, pronunciation))
     CONNECTION.commit()
@@ -100,7 +103,7 @@ def get_translation(guild_id: int, voice_name: str, text: str):
     CURSOR.execute("""
                       SELECT translation.pronunciation
                       FROM translations translation
-                      JOIN servers s ON translation.server_id = server.id
+                      JOIN servers server ON translation.server_id = server.id
                       JOIN voices voice ON translation.voice_id = voice.id
                       WHERE server.guild_id = ? AND voice.name = ? AND translation.word = ?
                    """, (guild_id, voice_name, text))

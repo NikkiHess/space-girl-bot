@@ -8,6 +8,7 @@ import json
 import asyncio
 import platform
 import aiohttp
+from collections import deque
 
 # PyPI modules
 import discord # pycord
@@ -19,7 +20,8 @@ import tts_driver as ttsd
 from errors import *
 from db_driver import *
 
-VC = None # the voice client, initialized in main
+VC_DICT = dict()
+TTS_QUEUE_DICT = dict()
 OS_NAME = platform.system() # for platform-dependent Opus loading
 
 # get intents
@@ -41,9 +43,15 @@ async def on_ready():
     """
     Declares bot ready, clears VC state, loads Opus (platform dependent), and runs TTS Queue handler
     """
-    global VC
+    global VC_DICT
 
-    VC = None
+    tsprint("Initializing guild VC list...")
+    for guild in bot.guilds:
+        VC_DICT[guild.id] = None
+        TTS_QUEUE_DICT[guild.id] = dict()
+
+        for voice in ttsd.TTS_VOICES:
+            TTS_QUEUE_DICT[guild.id][voice] = deque()
 
     # if that didn't work, try loading from /depend
     if not discord.opus.is_loaded():
@@ -87,11 +95,11 @@ async def on_voice_state_update(member: discord.Member,
     - `before` (discord.member.VoiceState): the VoiceState before the update
     - `after` (discord.member.VoiceState): the VoiceState after the update
     """
-    global VC
+    global VC_DICT
 
     if member.id == bot.user.id:
         if after.channel is None:
-            VC = None
+            VC_DICT[member.guild.id] = None
             tsprint("Bot left VC.")
 
 @bot.event
@@ -104,7 +112,7 @@ async def on_command_error(ctx, error):
         await ctx.respond("⚠️ Network error: unable to reach Discord. Try again later.")
     else:
         # fallback logging
-        print(f"⚠️ Something went wrong!")
+        print(f"⚠️ Something went wrong!\n{error}")
 
 
 # SLASH COMMANDS
@@ -124,22 +132,22 @@ async def tts(ctx, voice: str, input: str):
     """
     Does TTS, currently only Marcus.
     """
-    global VC
+    global VC_DICT
 
     await ctx.defer()
 
     voice_state = ctx.author.voice
     if voice_state is None:
-        await ctx.edit("❌ You are not in a VC.")
+        await ctx.respond("❌ You are not in a VC.")
         return
 
-    if VC is None:
-        VC = await voice_state.channel.connect(reconnect=False)
+    if VC_DICT[ctx.guild.id] is None:
+        VC_DICT[ctx.guild.id] = await voice_state.channel.connect(reconnect=False)
     
     # pick the right tts based on chosen voice
     match voice.lower():
         case "marcus":
-            was_too_long = ttsd.download_and_queue_marcus_tts(input)
+            was_too_long = ttsd.download_and_queue_marcus_tts(input, TTS_QUEUE_DICT[ctx.guild.id]["marcus"])
         case _:
             await ctx.followup.send("❌ Unknown voice selected.")
             return
@@ -154,7 +162,7 @@ async def join(ctx):
     """
     Forces the bot to join VC.
     """
-    global VC
+    global VC_DICT
 
     voice_state = ctx.author.voice
 
@@ -163,15 +171,15 @@ async def join(ctx):
         await ctx.respond("❌ You are not in a VC.")
         return
     
-    if VC is not None:
+    if VC_DICT[ctx.guild.id] is not None:
         await ctx.respond("❌ Already connected in this guild.")
         return
     
     await ctx.defer(invisible=False)
-    await ctx.edit(content="🛜 Connecting...")
+    await ctx.respond(content="🛜 Connecting...")
     
     voice_channel = voice_state.channel
-    VC = await voice_channel.connect(reconnect=False)
+    VC_DICT[ctx.guild.id] = await voice_channel.connect(reconnect=False)
 
     await ctx.edit(content=f"✅ Successfully joined {voice_channel.name}! Use /tts to speak.")
 
@@ -203,7 +211,7 @@ async def process_tts_queue():
     """
     Processes TTS queue - runs in Pycord event loop
     """
-    global VC
+    global VC_DICT, TTS_QUEUE_DICT
 
     ffmpeg_path = None
     match OS_NAME:
@@ -214,9 +222,9 @@ async def process_tts_queue():
         case _:
             raise OSNotSupportedError()
     
-    def make_after_callback(tts_filename):
+    def make_after_callback(tts_filename, guild_id):
         def after_play(_):  # The `_` is the exception Pycord passes
-            tsprint(f"Audio done playing: {tts_filename}")
+            tsprint(f"Audio done playing in {guild_id}: {tts_filename}")
             try:
                 os.remove(tts_filename)
                 tsprint(f"Deleted {tts_filename}")
@@ -224,29 +232,25 @@ async def process_tts_queue():
                 tsprint(f"File {tts_filename} already deleted")
         return after_play
 
-    while(True):
-        if VC is None or not VC.is_connected():
-            await asyncio.sleep(0.1)
-            continue
+    while True:
+        for guild_id, vc in VC_DICT.items():
+            if vc is None or not vc.is_connected():
+                continue
 
-        # if there's something in the queue and we're not playing something else, play our first TTS queue item
-        if len(ttsd.TTS_QUEUE) > 0 and not VC.is_playing():
-            tts_filename = ttsd.TTS_QUEUE.popleft()
+            for voice, queue in TTS_QUEUE_DICT[guild_id].items():
+                if queue and not vc.is_playing():
+                    tts_filename = queue.popleft()
+                    tsprint(f"Playing queued TTS {tts_filename} in guild {guild_id}")
 
-            tsprint(f"Playing queued TTS {tts_filename}")
-
-            try:
-                tts_audio_source = discord.FFmpegOpusAudio(
-                    executable=ffmpeg_path,
-                    source=tts_filename
-                )
-            except Exception as e:
-                tsprint("Could not get audio! Check if ffmpeg is loaded.")
-                return
-
-            VC.play(tts_audio_source, after=make_after_callback(tts_filename))
-        else:      
-            await asyncio.sleep(0.1)
+                    try:
+                        tts_audio_source = discord.FFmpegOpusAudio(
+                            executable=ffmpeg_path,
+                            source=tts_filename
+                        )
+                        vc.play(tts_audio_source, after=make_after_callback(tts_filename, guild_id))
+                    except Exception as e:
+                        tsprint(f"Could not play audio for guild {guild_id}: {e}")
+        await asyncio.sleep(0.1)
 
 if __name__ == "__main__":
     # load in our token

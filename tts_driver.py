@@ -18,8 +18,7 @@ DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
 MAX_LEN = 300
-
-TTS_QUEUE = deque()
+TTS_VOICES = ["marcus"]
 
 def adjust_pronunciation(input: str):
     """
@@ -40,17 +39,17 @@ def adjust_pronunciation(input: str):
 
     return input
 
-def download_and_queue_marcus_tts(input: str) -> bool:
+def download_and_queue_marcus_tts(input: str, tts_queue_dict: dict) -> bool:
     """
     downloads Marcus TTS from the TTS Vibes API and adds it to the TTS queue
 
     ## Args:
     - `input` (str): the text to speak (max 300 chars)
+    - `tts_queue` (dict): the tts queue (from dict) to add to
 
     ## Returns:
     - `was_too_long` (bool): whether the input got trimmed/was too long
     """
-    global TTS_QUEUE
 
     tsprint("Getting Marcus TTS...")
 
@@ -104,7 +103,7 @@ def download_and_queue_marcus_tts(input: str) -> bool:
 
         tsprint(f"Saved TTS to \"{filepath}\"")
 
-    TTS_QUEUE.append(filepath)
+    tts_queue_dict.append(filepath)
     tsprint(f"Added \"{input}\" to queue.")
 
     return was_too_long
