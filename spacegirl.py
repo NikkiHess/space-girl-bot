@@ -11,11 +11,13 @@ import aiohttp
 
 # PyPI modules
 import discord # pycord
+from discord.commands import SlashCommandGroup
 
 # my modules
 from nikki_util import timestamp_print as tsprint
 import tts_driver as ttsd
 from errors import *
+from db_driver import *
 
 VC = None # the voice client, initialized in main
 OS_NAME = platform.system() # for platform-dependent Opus loading
@@ -29,8 +31,9 @@ intents.guilds = True
 bot = discord.Bot(intents=intents)
 
 # BUG: If you try to make TTS that is too long the bot gets confused and thinks it can play it when TTS Vibes says no.
-# TODO: SQLite on Pi
 # TODO: Server dictionary function
+# TODO: bring cache back, copy old code?
+
 
 # BOT EVENTS
 @bot.event
@@ -73,17 +76,6 @@ async def on_ready():
     tsprint(f"{bot.user} is now ready!")
 
 @bot.event
-async def on_disconnect():
-    """
-    Handles the bot disconnecting from Discord itself. This triggers a bot shut down.
-    The Pi I host on will ultimately fix this by relaunching the process
-    """
-
-    tsprint("Bot disconnected. Exiting.")
-    exit(1)
-
-
-@bot.event
 async def on_voice_state_update(member: discord.Member,
                                 before: discord.member.VoiceState,
                                 after: discord.member.VoiceState):
@@ -112,13 +104,23 @@ async def on_command_error(ctx, error):
         await ctx.respond("⚠️ Network error: unable to reach Discord. Try again later.")
     else:
         # fallback logging
-        print(f"Unhandled error: {error}")
+        print(f"⚠️ Something went wrong!")
+
 
 # SLASH COMMANDS
 
 @bot.command(description="Does TTS.")
-@discord.option("input", type=str)
-async def tts(ctx, input: str):
+@discord.option(
+    "voice",
+    description="Which voice to use",
+    choices=["Marcus"]
+)
+@discord.option(
+    "input", 
+    type=str, 
+    description="The input to read"
+)
+async def tts(ctx, voice: str, input: str):
     """
     Does TTS, currently only Marcus.
     """
@@ -128,15 +130,24 @@ async def tts(ctx, input: str):
 
     voice_state = ctx.author.voice
     if voice_state is None:
-        await ctx.edit("You are not in a VC.")
-    else:
-        if VC is None:
-            VC = await voice_state.channel.connect(reconnect=False)
-        
-        was_too_long = ttsd.download_and_queue_marcus_tts(input)
-        await ctx.followup.send(
-            content=f"Queued TTS: {input}\n" + ("Input was trimmed because it was over 300 chars." if was_too_long else "")
-        )
+        await ctx.edit("❌ You are not in a VC.")
+        return
+
+    if VC is None:
+        VC = await voice_state.channel.connect(reconnect=False)
+    
+    # pick the right tts based on chosen voice
+    match voice.lower():
+        case "marcus":
+            was_too_long = ttsd.download_and_queue_marcus_tts(input)
+        case _:
+            await ctx.followup.send("❌ Unknown voice selected.")
+            return
+    
+    await ctx.followup.send(
+        content=f"🎤 Queued TTS: {input}\n" + 
+                ("Input was trimmed because it was over 300 chars." if was_too_long else "")
+    )
 
 @bot.command(description="Joins the voice chat you're currently in.")
 async def join(ctx):
@@ -149,20 +160,20 @@ async def join(ctx):
 
     # not in a vc
     if voice_state is None:
-        await ctx.respond("You are not in a VC.")
+        await ctx.respond("❌ You are not in a VC.")
         return
     
     if VC is not None:
-        await ctx.respond("Already connected in this guild.")
+        await ctx.respond("❌ Already connected in this guild.")
         return
     
     await ctx.defer(invisible=False)
-    await ctx.edit(content="Connecting...")
+    await ctx.edit(content="🛜 Connecting...")
     
     voice_channel = voice_state.channel
     VC = await voice_channel.connect(reconnect=False)
 
-    await ctx.edit(content=f"Successfully joined {voice_channel.name}! Use /tts to speak.")
+    await ctx.edit(content=f"✅ Successfully joined {voice_channel.name}! Use /tts to speak.")
 
 @bot.command(description="Leaves whatever voice chat it's currently in.")
 async def leave(ctx):
@@ -173,15 +184,20 @@ async def leave(ctx):
     voice_state = ctx.voice_client
 
     if voice_state is None:
-        await ctx.respond("I am not currently in a vc.")
+        await ctx.respond("❌ I am not currently in a vc.")
         return
     
     await voice_state.disconnect()
-    await ctx.respond("Left voice!")
+    await ctx.respond("👋🏻 Left voice!")
+
+
 
 @bot.command(description="A command for testing stuff")
-async def testcommand(ctx):
-    a
+async def pronunciation(ctx, add):
+    pass 
+
+
+# EVENT LOOP
 
 async def process_tts_queue():
     """
@@ -192,7 +208,7 @@ async def process_tts_queue():
     ffmpeg_path = None
     match OS_NAME:
         case "Windows":
-            ffmpeg_path = os.path.join("depend", "libopus.dll")
+            ffmpeg_path = os.path.join("depend", "ffmpeg.exe")
         case "Darwin":
             ffmpeg_path = "/opt/homebrew/bin/ffmpeg"
         case _:
@@ -219,10 +235,14 @@ async def process_tts_queue():
 
             tsprint(f"Playing queued TTS {tts_filename}")
 
-            tts_audio_source = discord.FFmpegOpusAudio(
-                executable=ffmpeg_path,
-                source=tts_filename
-            )
+            try:
+                tts_audio_source = discord.FFmpegOpusAudio(
+                    executable=ffmpeg_path,
+                    source=tts_filename
+                )
+            except Exception as e:
+                tsprint("Could not get audio! Check if ffmpeg is loaded.")
+                return
 
             VC.play(tts_audio_source, after=make_after_callback(tts_filename))
         else:      

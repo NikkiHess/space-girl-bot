@@ -9,8 +9,129 @@ import os.path
 import sqlite3
 
 DB_PATH = os.path.join("database", "pronunication_dictionary.db")
+CONNECTION = sqlite3.connect(DB_PATH)
+CURSOR = CONNECTION.cursor()
 
 def init_db():
     """
     Initializes the SQLite database, populating with tables if necessary
     """
+
+    CURSOR.executescript("""
+                         CREATE TABLE IF NOT EXISTS servers (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            guild_id TEXT UNIQUE NOT NULL
+                         );
+
+                         CREATE TABLE IF NOT EXISTS voices (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT
+                            name TEXT UNIQUE NOT NULL
+                         );
+
+                         CREATE TABLE IF NOT EXISTS translations (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            server_id INTEGER NOT NULL,
+                            voice_id INTEGER_NOT_NULL,
+                            word TEXT NOT NULL,
+                            pronunciation TEXT NOT NULL,
+                            FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE,
+                            FOREIGN KEY (voice_id) REFERENCES voices (id) ON DELETE CASCADE,
+                            UNIQUE(server_id, voice_id, word)
+                         );
+                         """)
+    
+def init_server(guild_id: int):
+    """
+    Initializes the server into the table if it doesn't already exist.
+
+    ## Args:
+    - `guild_id` (int): the id of the guild/server to insert
+    """
+
+    CURSOR.execute("INSERT OR IGNORE INTO servers (guild_id) VALUES (?)", (guild_id,))
+    CURSOR.execute("SELECT id FROM servers WHERE guild_id = ?", (guild_id,))
+    return CURSOR.fetchone()[0]
+
+def init_voice(voice_name: str):
+    """
+    Initializes the voice into the table if it doesn't already exist.
+
+    ## Args:
+    - `voice_name` (int): the name of the voice to insert
+    """
+
+    CURSOR.execute("INSERT OR IGNORE INTO voices (name) VALUES (?)", (voice_name,))
+    CURSOR.execute("SELECT id FROM voices WHERE name = ?", (voice_name,))
+    return CURSOR.fetchone()[0]
+
+def add_translation(guild_id: int, voice_name: str, text: str, pronunciation: str):
+    """
+    Adds a pronunciation translation to the server/voice.
+
+    ## Args:
+    - `guild_id` (int): the guild ID to insert the translation into
+    - `voice_name` (str): the voice name to insert the translation into
+    - `text` (str): the text to translate
+    - `pronunciation` (str): the pronunciation to translate to
+    """
+
+    server_id = init_server(guild_id)
+    voice_id = init_voice(voice_name)
+
+    CURSOR.execute("""
+                       INSERT OR REPLACE INTO translations (server_id, voice_id, text, pronuncation)
+                       VALUES (?, ?, ?, ?)
+                   """, (server_id, voice_id, text, pronunciation))
+    CONNECTION.commit()
+
+def get_translation(guild_id: int, voice_name: str, text: str):
+    """
+    Retrieves the translation for the word used by a voice in the server.
+
+    ## Args:
+    - `guild_id` (int): the guild ID to get the translation from
+    - `voice_name` (str): the voice name to get the translation from
+    - `text` (str): the text to retrieve the translation for
+
+    ## Returns:
+    - result[0] if result else None
+    """
+
+    CURSOR.execute("""
+                      SELECT translation.pronunciation
+                      FROM translations translation
+                      JOIN servers s ON translation.server_id = server.id
+                      JOIN voices voice ON translation.voice_id = voice.id
+                      WHERE server.guild_id = ? AND voice.name = ? AND translation.word = ?
+                   """, (guild_id, voice_name, text))
+    result = CURSOR.fetchone()
+    return result[0] if result else None
+
+def remove_translation(guild_id: int, voice_name: str, text: str):
+    """
+    Removes a pronunciation translation from the server/voice.
+
+    ## Args:
+    - `guild_id` (int): the guild ID to remove the translation from
+    - `voice_name` (str): the voice name to remove the translation from
+    - `text` (str): the text whose translation should be removed
+
+    ## Returns:
+    - True if a translation was removed, False if none existed
+    """
+
+    CURSOR.execute("""
+                      DELETE FROM translations
+                      WHERE server_id = (
+                          SELECT s.id FROM servers s WHERE s.guild_id = ?
+                      )
+                      AND voice_id = (
+                          SELECT v.id FROM voices v WHERE v.name = ?
+                      )
+                      AND word = ?
+                   """, (guild_id, voice_name, text))
+
+    changes = CONNECTION.total_changes
+    CONNECTION.commit()
+
+    return changes > 0
