@@ -23,6 +23,7 @@ from db_driver import *
 VC_DICT = dict()
 TTS_QUEUE_DICT = dict()
 OS_NAME = platform.system() # for platform-dependent Opus loading
+INVITE_LINK = "https://discord.com/oauth2/authorize?client_id=1424873603790540982&scope=bot&permissions=2184268800"
 
 # get intents
 intents = discord.Intents.default()
@@ -84,6 +85,18 @@ async def on_ready():
     tsprint(f"{bot.user} is now ready!")
 
 @bot.event
+async def on_guild_join(guild: discord.Guild):
+    """
+    Triggers when the bot joins a new guild.
+    """
+    tsprint(f"Joined a new guild: {guild.name}")
+    tsprint(f"Adding guild to the TTS queue system...")
+
+    TTS_QUEUE_DICT[guild.id] = dict()
+    for voice in ttsd.TTS_VOICES:
+        TTS_QUEUE_DICT[guild.id][voice] = deque()
+
+@bot.event
 async def on_voice_state_update(member: discord.Member,
                                 before: discord.member.VoiceState,
                                 after: discord.member.VoiceState):
@@ -103,7 +116,7 @@ async def on_voice_state_update(member: discord.Member,
             tsprint("Bot left VC.")
 
 @bot.event
-async def on_command_error(ctx, error):
+async def on_command_error(ctx: discord.ApplicationContext, error):
     """
     Handle uncaught exceptions in the bot
     """
@@ -117,7 +130,29 @@ async def on_command_error(ctx, error):
 
 # SLASH COMMANDS
 
-@bot.command(description="Does TTS.")
+@bot.command(description="DMs you the link to invite me to your server", dm_permission=True)
+async def invite(ctx: discord.ApplicationContext):
+    """
+    Sends the relevant invite link to the user who asked
+    """
+    embed = discord.Embed(
+        title="✨ Invite Space Girl Bot!",
+        description=f"Click the button below to add me to your server!",
+        color=0xED99A0  # cute pink color
+    )
+    embed.add_field(name="Invite Link", value=f"[Click here!]({INVITE_LINK})", inline=False)
+
+    try:
+        # only send this message in guilds
+        if ctx.guild:
+            await ctx.respond("📬 I’ve sent you my invite link via DM!")
+            await ctx.author.send(embed=embed)
+        else:
+            await ctx.respond(embed=embed)
+    except discord.Forbidden:
+        await ctx.respond("⚠️ I couldn’t DM you! Please check your privacy settings.")
+
+@bot.command(description="Does TTS.", dm_permission=False)
 @discord.option(
     "voice",
     description="Which voice to use",
@@ -128,7 +163,7 @@ async def on_command_error(ctx, error):
     type=str, 
     description="The input to read"
 )
-async def tts(ctx, voice: str, input: str):
+async def tts(ctx: discord.ApplicationContext, voice: str, input: str):
     """
     Does TTS, currently only Marcus.
     """
@@ -158,7 +193,13 @@ async def tts(ctx, voice: str, input: str):
     )
 
 @bot.command(description="Joins the voice chat you're currently in.")
-async def join(ctx):
+@discord.option(
+    "vc",
+    description="[Optional] The VC (#channel-name) to join",
+    channel_types=[discord.ChannelType.voice],
+    default=None
+)
+async def join(ctx: discord.ApplicationContext, vc: discord.VoiceChannel = None):
     """
     Forces the bot to join VC.
     """
@@ -178,7 +219,11 @@ async def join(ctx):
     await ctx.defer(invisible=False)
     await ctx.respond(content="🛜 Connecting...")
     
-    voice_channel = voice_state.channel
+    if vc is None:
+        voice_channel = voice_state.channel
+    else:
+        voice_channel = vc
+    
     VC_DICT[ctx.guild.id] = await voice_channel.connect(reconnect=False)
 
     await ctx.edit(content=f"✅ Successfully joined {voice_channel.name}! Use /tts to speak.")
@@ -198,10 +243,8 @@ async def leave(ctx):
     await voice_state.disconnect()
     await ctx.respond("👋🏻 Left voice!")
 
-
-
 @bot.command(description="A command for testing stuff")
-async def pronunciation(ctx, add):
+async def pronunciation(ctx: discord.ApplicationContext, add):
     pass 
 
 
