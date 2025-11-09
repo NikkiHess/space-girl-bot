@@ -9,6 +9,7 @@ import asyncio
 import platform
 import aiohttp
 from collections import deque
+from typing import Dict, Deque, Optional
 
 # PyPI modules
 import discord # pycord
@@ -20,8 +21,10 @@ import tts_driver as ttsd
 from errors import *
 from db_driver import *
 
-VC_DICT = dict()
-TTS_QUEUE_DICT = dict()
+VC_DICT: Dict[int, Optional[discord.VoiceClient]] = dict()
+TTS_QUEUE_DICT: Dict[int, Dict[str, Deque[str]]] = dict()
+LAST_TRIGGERED_CHANNEL_DICT: Dict[int, int] = dict()
+
 OS_NAME = platform.system() # for platform-dependent Opus loading
 INVITE_LINK = "https://discord.com/oauth2/authorize?client_id=1424873603790540982&scope=bot&permissions=2184268800"
 
@@ -89,7 +92,9 @@ async def on_voice_state_update(member: discord.Member,
                                 before: discord.member.VoiceState,
                                 after: discord.member.VoiceState):
     """
-    When the bot's voice state updates, if it left a VC, clear its VC state
+    When the bot's voice state updates:
+        - if it left a VC, clear its VC state.
+        - if the VC is empty except for bots, leave.
 
     ## Args:
     - `member` (discord.Member): the member whose voice state updates
@@ -97,11 +102,25 @@ async def on_voice_state_update(member: discord.Member,
     - `after` (discord.member.VoiceState): the VoiceState after the update
     """
     global VC_DICT
+    guild_id = member.guild.id
 
+    # check if the bot left the VC
     if member.id == bot.user.id:
         if after.channel is None:
-            VC_DICT[member.guild.id] = None
-            tsprint("Bot left VC.")
+            VC_DICT[guild_id] = None
+            tsprint(f"Bot left VC in {guild_id}.")
+        return # no need to check for emptiness if bot left
+    
+    # check if the bot is in a VC in this guild, just to make sure
+    vc = VC_DICT.get(guild_id)
+    if vc is None or not vc.is_connected():
+        return
+    
+    # if VC empty except for bots, leave
+    non_bot_members = [member for member in vc.channel.members if not member.bot]
+    if not non_bot_members:
+        await leave_vc(guild_id)
+        
 
 @bot.event
 async def on_command_error(ctx: discord.ApplicationContext, error):
@@ -182,6 +201,8 @@ async def tts(ctx: discord.ApplicationContext, voice: str, input: str):
         case _:
             await ctx.followup.send("❌ Unknown voice selected.")
             return
+        
+    tsprint(f"Queued TTS \"{input}\" in guild {ctx.guild_id}")
     
     await ctx.followup.send(
         content=f"🎤 Queued TTS: {input}\n" + 
@@ -199,7 +220,9 @@ async def join(ctx: discord.ApplicationContext, vc: discord.VoiceChannel = None)
     """
     Forces the bot to join VC.
     """
-    global VC_DICT
+    global VC_DICT, LAST_TRIGGERED_CHANNEL_DICT
+
+    LAST_TRIGGERED_CHANNEL_DICT[ctx.guild_id] = ctx.channel_id
 
     voice_state = ctx.author.voice
 
@@ -224,20 +247,32 @@ async def join(ctx: discord.ApplicationContext, vc: discord.VoiceChannel = None)
 
     await ctx.edit(content=f"✅ Successfully joined {voice_channel.name}! Use /tts to speak.")
 
-@bot.command(description="Leaves whatever voice chat it's currently in.")
-async def leave(ctx):
+async def leave_vc(guild_id: int, ctx: Optional[discord.ApplicationContext] = None):
     """
-    Forces the bot to leave vc.
+    Leaves a VC in a guild safely, optionally sending a message if ctx is given.
     """
-    
-    voice_state = ctx.voice_client
-
-    if voice_state is None:
-        await ctx.respond("❌ I am not currently in a vc.")
+    vc = VC_DICT.get(guild_id)
+    if not vc or not vc.is_connected():
+        if ctx:
+            await ctx.respond("❌ I am not currently in a VC.")
         return
-    
-    await voice_state.disconnect()
-    await ctx.respond("👋🏻 Left voice!")
+
+    if ctx:
+        await ctx.respond("👋🏻 Left voice!")
+
+    # reset triggered channel
+    LAST_TRIGGERED_CHANNEL_DICT[guild_id] = None
+
+    await vc.disconnect()
+    VC_DICT[guild_id] = None
+
+
+@bot.command(description="Leaves whatever voice chat it's currently in.")
+async def leave(ctx: discord.ApplicationContext):
+    """
+    Command wrapper to leave VC from current guild.
+    """
+    await leave_vc(ctx.guild_id, ctx)
 
 @bot.command(description="A command for testing stuff")
 async def pronunciation(ctx: discord.ApplicationContext, add):
@@ -266,7 +301,7 @@ async def process_tts_queue():
             tsprint(f"Audio done playing in {guild_id}: {tts_filename}")
             try:
                 os.remove(tts_filename)
-                tsprint(f"Deleted {tts_filename}")
+                tsprint(f"Deleted \"{tts_filename}\"")
             except FileNotFoundError:
                 tsprint(f"File {tts_filename} already deleted")
         return after_play

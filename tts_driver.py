@@ -104,7 +104,6 @@ def download_and_queue_marcus_tts(input: str, tts_queue_dict: dict) -> bool:
         tsprint(f"Saved TTS to \"{filepath}\"")
 
     tts_queue_dict.append(filepath)
-    tsprint(f"Added \"{input}\" to queue.")
 
     return was_too_long
 
