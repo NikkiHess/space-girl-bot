@@ -85,18 +85,6 @@ async def on_ready():
     tsprint(f"{bot.user} is now ready!")
 
 @bot.event
-async def on_guild_join(guild: discord.Guild):
-    """
-    Triggers when the bot joins a new guild.
-    """
-    tsprint(f"Joined a new guild: {guild.name}")
-    tsprint(f"Adding guild to the TTS queue system...")
-
-    TTS_QUEUE_DICT[guild.id] = dict()
-    for voice in ttsd.TTS_VOICES:
-        TTS_QUEUE_DICT[guild.id][voice] = deque()
-
-@bot.event
 async def on_voice_state_update(member: discord.Member,
                                 before: discord.member.VoiceState,
                                 after: discord.member.VoiceState):
@@ -167,7 +155,15 @@ async def tts(ctx: discord.ApplicationContext, voice: str, input: str):
     """
     Does TTS, currently only Marcus.
     """
-    global VC_DICT
+    global VC_DICT, TTS_QUEUE_DICT
+
+    # make sure dicts have entries for this guild
+    if ctx.guild_id not in VC_DICT:
+        tsprint(f"Adding guild to the TTS queue system...")
+        VC_DICT[ctx.guild_id] = None
+    if ctx.guild_id not in TTS_QUEUE_DICT:
+        tsprint(f"Adding voices to the TTS queue system in {ctx.guild_id}...")
+        TTS_QUEUE_DICT[ctx.guild_id] = {voice: deque() for voice in ttsd.TTS_VOICES}
 
     await ctx.defer()
 
@@ -176,13 +172,13 @@ async def tts(ctx: discord.ApplicationContext, voice: str, input: str):
         await ctx.respond("❌ You are not in a VC.")
         return
 
-    if VC_DICT[ctx.guild.id] is None:
-        VC_DICT[ctx.guild.id] = await voice_state.channel.connect(reconnect=False)
+    if VC_DICT[ctx.guild_id] is None:
+        VC_DICT[ctx.guild_id] = await voice_state.channel.connect(reconnect=False)
     
     # pick the right tts based on chosen voice
     match voice.lower():
         case "marcus":
-            was_too_long = ttsd.download_and_queue_marcus_tts(input, TTS_QUEUE_DICT[ctx.guild.id]["marcus"])
+            was_too_long = ttsd.download_and_queue_marcus_tts(input, TTS_QUEUE_DICT[ctx.guild_id]["marcus"])
         case _:
             await ctx.followup.send("❌ Unknown voice selected.")
             return
@@ -212,7 +208,7 @@ async def join(ctx: discord.ApplicationContext, vc: discord.VoiceChannel = None)
         await ctx.respond("❌ You are not in a VC.")
         return
     
-    if VC_DICT[ctx.guild.id] is not None:
+    if VC_DICT[ctx.guild_id] is not None:
         await ctx.respond("❌ Already connected in this guild.")
         return
     
@@ -224,7 +220,7 @@ async def join(ctx: discord.ApplicationContext, vc: discord.VoiceChannel = None)
     else:
         voice_channel = vc
     
-    VC_DICT[ctx.guild.id] = await voice_channel.connect(reconnect=False)
+    VC_DICT[ctx.guild_id] = await voice_channel.connect(reconnect=False)
 
     await ctx.edit(content=f"✅ Successfully joined {voice_channel.name}! Use /tts to speak.")
 
