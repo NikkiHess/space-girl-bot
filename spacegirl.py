@@ -227,7 +227,7 @@ async def join(ctx: discord.ApplicationContext, vc: discord.VoiceChannel = None)
     voice_state = ctx.author.voice
 
     # not in a vc
-    if voice_state is None:
+    if vc is None and voice_state is None:
         await ctx.respond("❌ You are not in a VC.")
         return
     
