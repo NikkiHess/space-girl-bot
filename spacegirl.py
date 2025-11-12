@@ -13,13 +13,13 @@ from typing import Dict, Deque, Optional
 
 # PyPI modules
 import discord # pycord
-from discord.commands import SlashCommandGroup
 
 # my modules
 from nikki_util import timestamp_print as tsprint
 import tts_driver as ttsd
 from errors import *
-from db_driver import *
+import db_driver as dbd # NOT DEAD BY DAYLIGHT
+from views import *
 
 VC_DICT: Dict[int, Optional[discord.VoiceClient]] = dict()
 TTS_QUEUE_DICT: Dict[int, Dict[str, Deque[str]]] = dict()
@@ -36,10 +36,11 @@ intents.guilds = True
 
 bot = discord.Bot(intents=intents)
 
+voices = ["Marcus"]
+
 # BUG: If you try to make TTS that is too long the bot gets confused and thinks it can play it when TTS Vibes says no.
 # TODO: Server dictionary function
 # TODO: bring cache back, copy old code?
-
 
 # BOT EVENTS
 @bot.event
@@ -56,6 +57,9 @@ async def on_ready():
 
         for voice in ttsd.TTS_VOICES:
             TTS_QUEUE_DICT[guild.id][voice] = deque()
+
+    tsprint("Initializing database...")
+    dbd.init_db()
 
     # if that didn't work, try loading from /depend
     if not discord.opus.is_loaded():
@@ -163,12 +167,12 @@ async def invite(ctx: discord.ApplicationContext):
 @discord.option(
     "voice",
     description="Which voice to use",
-    choices=["Marcus"]
+    choices=voices
 )
 @discord.option(
     "input", 
     type=str, 
-    description="The input to read"
+    description="The input to read (MAX 300 CHARS)"
 )
 async def tts(ctx: discord.ApplicationContext, voice: str, input: str):
     """
@@ -266,7 +270,6 @@ async def leave_vc(guild_id: int, ctx: Optional[discord.ApplicationContext] = No
     await vc.disconnect()
     VC_DICT[guild_id] = None
 
-
 @bot.command(description="Leaves whatever voice chat it's currently in.")
 async def leave(ctx: discord.ApplicationContext):
     """
@@ -274,10 +277,71 @@ async def leave(ctx: discord.ApplicationContext):
     """
     await leave_vc(ctx.guild_id, ctx)
 
-@bot.command(description="A command for testing stuff")
-async def pronunciation(ctx: discord.ApplicationContext, add):
-    pass 
+pronunciation = bot.create_group("pronunciation", "Modify pronunciations on a per-server basis")
 
+@pronunciation.command(description="Add a pronunciation to this server")
+@discord.option(
+    "voice",
+    description="Which voice to use",
+    choices=voices
+)
+@discord.option("text", description="The text to translate")
+@discord.option("pronunciation", description="What to translate to")
+async def add(ctx: discord.ApplicationContext, voice: str, text: str, pronunciation: str):
+    """
+    Adds a pronunciation to the Discord server within the database
+    """
+    await ctx.respond("🔄 Processing...")
+
+    existing_pronunciation = dbd.get_pronunciation(ctx.guild_id, voice, text)
+    if existing_pronunciation:
+        embed = discord.Embed(
+            title = "Pronunciation Override Confirmation",
+            description = f"",
+            color = discord.Color.yellow()
+        )
+        embed.add_field(name = "Text", value = text, inline = False)
+        embed.add_field(name = "Old Pronunciation", value = existing_pronunciation, inline = False)
+        embed.add_field(name = "New Pronunciation", value = pronunciation, inline = False)
+
+        view = ConfirmView()
+        await ctx.edit(
+            embed=embed, 
+            view=view
+        )
+        await view.wait()
+
+        if view.value is False:
+            await ctx.edit(content="❌ Operation cancelled.", embed=None, view=None)
+            return
+    else:
+        tsprint(f"Adding pronunciation \"{text}\" -> \"{pronunciation}\" to guild {ctx.guild_id}")
+    
+    dbd.add_pronunciation(ctx.guild_id, voice, text, pronunciation)
+
+    embed = discord.Embed(
+        title = "Pronunciation Successfully Added!",
+        description = f"Your pronunciation has been added to **{ctx.guild.name}**!",
+        color = discord.Color.brand_green()
+    )
+    embed.add_field(name = "Text", value = text, inline = False)
+    embed.add_field(name = "Pronunciation", value = pronunciation, inline = False)
+
+    await ctx.edit(content=None, embed=embed, view=None)
+    
+
+    
+@discord.option(
+    "voice",
+    description="Which voice to use",
+    choices=voices
+)
+@pronunciation.command(description="List all pronunciations for a voice in this server")
+async def list(ctx: discord.ApplicationContext, voice: str):
+    """
+    Lists all pronunciations for a specified voice within the Discord server
+    """
+    pronunciations = dbd.list_translations(voice)
 
 # EVENT LOOP
 

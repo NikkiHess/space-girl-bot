@@ -35,11 +35,11 @@ def init_db():
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             server_id INTEGER NOT NULL,
                             voice_id INTEGER NOT NULL,
-                            word TEXT NOT NULL,
+                            text TEXT NOT NULL,
                             pronunciation TEXT NOT NULL,
                             FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE,
                             FOREIGN KEY (voice_id) REFERENCES voices (id) ON DELETE CASCADE,
-                            UNIQUE(server_id, voice_id, word)
+                            UNIQUE(server_id, voice_id, text)
                          );
                          """)
     
@@ -67,7 +67,7 @@ def init_voice(voice_name: str):
     CURSOR.execute("SELECT id FROM voices WHERE name = ?", (voice_name,))
     return CURSOR.fetchone()[0]
 
-def add_translation(guild_id: int, voice_name: str, text: str, pronunciation: str):
+def add_pronunciation(guild_id: int, voice_name: str, text: str, pronunciation: str):
     """
     Adds a pronunciation translation to the server/voice.
 
@@ -87,9 +87,9 @@ def add_translation(guild_id: int, voice_name: str, text: str, pronunciation: st
                    """, (server_id, voice_id, text, pronunciation))
     CONNECTION.commit()
 
-def get_translation(guild_id: int, voice_name: str, text: str):
+def get_pronunciation(guild_id: int, voice_name: str, text: str):
     """
-    Retrieves the translation for the word used by a voice in the server.
+    Retrieves the translation for the text - used by a voice within a server.
 
     ## Args:
     - `guild_id` (int): the guild ID to get the translation from
@@ -105,12 +105,12 @@ def get_translation(guild_id: int, voice_name: str, text: str):
                       FROM translations translation
                       JOIN servers server ON translation.server_id = server.id
                       JOIN voices voice ON translation.voice_id = voice.id
-                      WHERE server.guild_id = ? AND voice.name = ? AND translation.word = ?
+                      WHERE server.guild_id = ? AND voice.name = ? AND translation.text = ?
                    """, (guild_id, voice_name, text))
     result = CURSOR.fetchone()
     return result[0] if result else None
 
-def remove_translation(guild_id: int, voice_name: str, text: str):
+def remove_pronunciation(guild_id: int, voice_name: str, text: str):
     """
     Removes a pronunciation translation from the server/voice.
 
@@ -131,10 +131,28 @@ def remove_translation(guild_id: int, voice_name: str, text: str):
                       AND voice_id = (
                           SELECT v.id FROM voices v WHERE v.name = ?
                       )
-                      AND word = ?
+                      AND text = ?
                    """, (guild_id, voice_name, text))
 
     changes = CONNECTION.total_changes
     CONNECTION.commit()
 
     return changes > 0
+
+def list_pronunciations(guild_id: int, voice_name: str) -> dict[str, str]:
+    """
+    Removes a pronunciation translation from the server/voice.
+
+    ## Args:
+    - `guild_id` (int): the guild ID to remove the translation from
+    - `voice_name` (str): the voice name to list pronunciations for
+
+    ## Returns:
+    - `dictionary` (dict[str, str]): the pronunciations found in the db
+    """
+
+    CURSOR.execute(
+        """
+            
+        """
+    )
