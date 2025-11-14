@@ -151,8 +151,36 @@ def list_pronunciations(guild_id: int, voice_name: str) -> dict[str, str]:
     - `dictionary` (dict[str, str]): the pronunciations found in the db
     """
 
-    CURSOR.execute(
+    # get the server
+    # get the voice's pronunciations within that server as a dict
+    # return
+
+    # grab server id based on guild_id
+    server_row = CURSOR.execute(
+        f"SELECT id FROM servers WHERE guild_id = ? LIMIT 1", (guild_id,)
+    ).fetchone()
+    # no server? no pronunciations.
+    if not server_row: return {}
+    # otherwise we can grab the server id from col 0 of this row
+    server_id = server_row[0]
+
+    # now get the voice
+    voice_row = CURSOR.execute(
+        "SELECT id FROM voices WHERE name = ? LIMIT 1",
+        (voice_name,)
+    ).fetchone()
+    # no voice? no pronunciations.
+    if not voice_row: return {}
+    # else grab voice id from row
+    voice_id = voice_row[0]
+
+    # get pronunciations as a dict
+    pronunciation_rows = CURSOR.execute(
         """
-            
-        """
-    )
+        SELECT text, pronunciation FROM translations WHERE server_id = ? AND voice_id = ?
+        """,
+        (server_id, voice_id)
+    ).fetchall()
+
+    # map and return
+    return {text: pronunciation for text, pronunciation in pronunciation_rows}

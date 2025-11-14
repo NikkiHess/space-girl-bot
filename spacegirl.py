@@ -10,6 +10,7 @@ import platform
 import aiohttp
 from collections import deque
 from typing import Dict, Deque, Optional
+from itertools import islice
 
 # PyPI modules
 import discord # pycord
@@ -163,6 +164,7 @@ async def invite(ctx: discord.ApplicationContext):
     except discord.Forbidden:
         await ctx.respond("⚠️ I couldn’t DM you! Please check your privacy settings.")
 
+# TODO: make a command where you can select a voice so you don't have to type a voice every time
 @bot.command(description="Does TTS.", dm_permission=False)
 @discord.option(
     "voice",
@@ -329,19 +331,59 @@ async def add(ctx: discord.ApplicationContext, voice: str, text: str, pronunciat
 
     await ctx.edit(content=None, embed=embed, view=None)
     
-
-    
+# name="list" doesn't match function name here because otherwise we have naming conflicts
 @discord.option(
     "voice",
-    description="Which voice to use",
+    description="Which voice to check pronunciations for",
     choices=voices
 )
-@pronunciation.command(description="List all pronunciations for a voice in this server")
-async def list(ctx: discord.ApplicationContext, voice: str):
+@pronunciation.command(name="list", description="List all pronunciations for a voice in this server")
+async def list_pronunciations(ctx: discord.ApplicationContext, voice: str):
     """
     Lists all pronunciations for a specified voice within the Discord server
     """
-    pronunciations = dbd.list_translations(voice)
+    pronunciations = dbd.list_pronunciations(ctx.guild_id, voice)
+    
+    per_page = 10
+    current_page = 1
+    # 10 per page, add 1 to page number cuz floor divide
+    num_pages = (len(pronunciations) // per_page) + 1
+
+    def build_embed(current_page: int, num_pages: int):
+        """
+        builds the embed based on page information
+        """
+        embed = discord.Embed(
+            title=f"Pronunciation Dictionary for **{voice}** in **{ctx.guild.name}**",
+            color=0xED99A0  # cute pink color
+        )
+
+        # slice items for the current page
+        start_idx = (current_page - 1) * per_page
+        end_idx = current_page * per_page
+        slice_items = list(islice(pronunciations.items(), start_idx, end_idx))
+
+        # join keys and values for this page
+        keys_text = "\n".join(k for k, _ in slice_items)
+        vals_text = "\n".join(v for _, v in slice_items)
+
+        # list all pronunciations
+        embed.add_field(name="Text", value=keys_text or "—")
+        embed.add_field(name="Pronunciation", value=vals_text or "—")
+
+        # pycord doesn't like empty strings for names, so just use 0-width character
+        embed.add_field(name="\u200b", value=f"({current_page} / {num_pages})", inline=False)
+
+        return embed
+
+    if len(pronunciations) > 0:
+        embed = build_embed(current_page, num_pages)
+
+        page_nav_view = PageNavView(num_pages, build_embed)
+        await ctx.respond(embed=embed, view=page_nav_view)
+    else:
+        await ctx.respond("❌ No pronunciations found for this guild!")
+
 
 # EVENT LOOP
 
