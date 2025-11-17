@@ -33,11 +33,15 @@ def adjust_pronunciation(input: str, voice: str):
 
     # marcus-related voice stuff
     if voice == "Marcus":
+        # TODO: add this to database, make way to add global pronunciation via bot
         LEGACY_PRONUNCIATION_DICTIONARY = {
             "lol": "lawl",
             "uwu": "ooh woo",
             ":3": "colon three",
-            "minecraft": "mine craft"
+            "minecraft": "mine craft",
+            "lmao": "LMAO",
+            "labubu": "luh booboo",
+            "bros": "bro's"
         }
             
         for trigger, replacement in LEGACY_PRONUNCIATION_DICTIONARY.items():

@@ -11,9 +11,11 @@ import aiohttp
 from collections import deque
 from typing import Dict, Deque, Optional
 from itertools import islice
+import random
 
 # PyPI modules
 import discord # pycord
+from discord import AppEmoji
 
 # my modules
 from nikki_util import timestamp_print as tsprint
@@ -39,8 +41,48 @@ bot = discord.Bot(intents=intents)
 
 TTS_VOICES = ["Marcus"]
 
+APP_EMOJI_CACHE = None
+
 # BUG: If you try to make TTS that is too long the bot gets confused and thinks it can play it when TTS Vibes says no.
 # TODO: bring cache back, copy old code?
+
+# HELPERS
+async def get_app_emoji() -> list[AppEmoji]:
+    """
+    Gets a convenient list of all the bot's application emoji
+
+    ## Returns:
+    - `emoji_list` (list[AppEmoji]): a list of AppEmoji objects
+    """
+    global APP_EMOJI_CACHE
+
+    # just get the cache if we have it, way faster
+    if APP_EMOJI_CACHE: return APP_EMOJI_CACHE
+
+    raw = await bot._connection.http.get_all_application_emojis(bot.application_id)
+    emoji_list = [bot._connection.maybe_store_app_emoji(bot.application_id, d) for d in raw["items"]]
+    APP_EMOJI_CACHE = emoji_list # store list on first hit
+    return emoji_list
+
+async def get_random_app_emoji(search: str) -> AppEmoji:
+    """
+    Returns a random application emoji by search
+
+    ## Args:
+    - `search` (str): the string to search for within the emoji list
+
+    ## Returns:
+    - `random_selection` (AppEmoji): the randomly-selected AppEmoji
+    """
+    emoji_list = await get_app_emoji()
+    emoji_list = [emoji for emoji in emoji_list if search.lower() in emoji.name.lower()] # filter the list
+
+    if len(emoji_list) > 0:
+        random_selection = random.choice(emoji_list)
+        return random_selection
+    else:
+        tsprint(f"No app emoji found containing {search} (case-insensitive)")
+        return None
 
 # BOT EVENTS
 @bot.event
@@ -49,9 +91,6 @@ async def on_ready():
     Declares bot ready, clears VC state, loads Opus (platform dependent), and runs TTS Queue handler
     """
     global VC_DICT
-
-    tsprint("Syncing commands...")
-    await bot.sync_commands()
 
     tsprint("Initializing guild VC list...")
     for guild in bot.guilds:
@@ -89,6 +128,9 @@ async def on_ready():
             raise OpusNotFoundError()
     
     tsprint("Loaded Opus successfully.")
+
+    # handle AppEmoji cache
+    APP_EMOJI_CACHE = get_app_emoji()
 
     bot.loop.create_task(process_tts_queue())
 
@@ -214,8 +256,14 @@ async def tts(ctx: discord.ApplicationContext, voice: str, input: str):
         
     tsprint(f"Queued TTS \"{input}\" in guild {ctx.guild_id}")
     
+    # handle message intro with voice emoji and name
+    app_emoji = await get_random_app_emoji(voice)
+    message_intro = "🎤 Queued TTS"
+    if app_emoji:
+        message_intro = f"{app_emoji} {voice}"
+
     await ctx.followup.send(
-        content=f"🎤 Queued TTS: {input}\n" + 
+        content=f"{message_intro}: {input}\n" + 
                 ("Input was trimmed because it was over 300 chars." if was_too_long else "")
     )
 
