@@ -12,7 +12,6 @@ import json
 
 # my modules
 from nikki_util import timestamp_print as tsprint
-from pronunciation_dictionary import pronunciation
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
@@ -20,22 +19,33 @@ os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 MAX_LEN = 300
 TTS_VOICES = ["marcus"]
 
-def adjust_pronunciation(input: str):
+def adjust_pronunciation(input: str, voice: str):
     """
     Makes various adjustments to input text to make tts sound and function better
 
     ## Args:
     - `input` (str): the text to adjust
+    - `voice` (str): the voice to adjust pronunciation for
 
     ## Returns:
     - `input` (str): the adjusted input
     """
-    
-    for trigger, replacement in pronunciation.items():
-        input = re.sub(trigger, replacement, input, flags=re.IGNORECASE)
 
-    if input.lower() == "no":
-        input = "no."
+    # marcus-related voice stuff
+    if voice == "Marcus":
+        LEGACY_PRONUNCIATION_DICTIONARY = {
+            "lol": "lawl",
+            "uwu": "ooh woo",
+            ":3": "colon three",
+            "minecraft": "mine craft"
+        }
+            
+        for trigger, replacement in LEGACY_PRONUNCIATION_DICTIONARY.items():
+            input = re.sub(trigger, replacement, input, flags=re.IGNORECASE)
+
+        # if the whole input is no, add a period so marcus doesn't say number
+        if input.lower() == "no":
+            input = "no."
 
     return input
 
@@ -64,7 +74,7 @@ def download_and_queue_marcus_tts(input: str, tts_queue_dict: dict) -> bool:
     filename = re.sub(r'[\\/*?:"<>,|]', "", input)
     filepath = os.path.join("downloads", f"{filename}.mp3")
 
-    input = adjust_pronunciation(input)
+    input = adjust_pronunciation(input, "Marcus")
 
     # request from the TTS Vibes API (subject to change)
     url = "https://ttsvibes.com/?/generate"

@@ -3,7 +3,6 @@
 echo Upgrading pip...
 
 :: upgrade pip
-:: TODO: make this catch if there is an error (with the command name) and do a different python
 py -m pip install -U pip
 
 echo Done upgrading pip!

@@ -37,10 +37,9 @@ intents.guilds = True
 
 bot = discord.Bot(intents=intents)
 
-voices = ["Marcus"]
+TTS_VOICES = ["Marcus"]
 
 # BUG: If you try to make TTS that is too long the bot gets confused and thinks it can play it when TTS Vibes says no.
-# TODO: Server dictionary function
 # TODO: bring cache back, copy old code?
 
 # BOT EVENTS
@@ -116,7 +115,7 @@ async def on_voice_state_update(member: discord.Member,
     if member.id == bot.user.id:
         if after.channel is None:
             VC_DICT[guild_id] = None
-            tsprint(f"Bot left VC in {guild_id}.")
+            tsprint(f"Bot left VC {before.channel.name} in {guild_id}.")
         return # no need to check for emptiness if bot left
     
     # check if the bot is in a VC in this guild, just to make sure
@@ -168,11 +167,13 @@ async def invite(ctx: discord.ApplicationContext):
         await ctx.respond("⚠️ I couldn’t DM you! Please check your privacy settings.")
 
 # TODO: make a command where you can select a voice so you don't have to type a voice every time
+# TODO: make it so it says "(voice emoji) (voice name): (text)"
+# BUG: bot won't say emojis, add default translations?
 @bot.command(description="Does TTS.", dm_permission=False)
 @discord.option(
     "voice",
     description="Which voice to use",
-    choices=voices
+    choices=TTS_VOICES
 )
 @discord.option(
     "input", 
@@ -254,7 +255,7 @@ async def join(ctx: discord.ApplicationContext, vc: discord.VoiceChannel = None)
     
     VC_DICT[ctx.guild_id] = await voice_channel.connect(reconnect=False)
 
-    await ctx.edit(content=f"✅ Successfully joined {voice_channel.name}! Use /tts to speak.")
+    await ctx.edit(content=f"✅ Successfully joined **{voice_channel.name}**! Use /tts to speak.")
 
 async def leave_vc(guild_id: int, ctx: Optional[discord.ApplicationContext] = None):
     """
@@ -288,7 +289,7 @@ pronunciation = bot.create_group("pronunciation", "Modify pronunciations on a pe
 @discord.option(
     "voice",
     description="Which voice to edit",
-    choices=voices
+    choices=TTS_VOICES
 )
 @discord.option("text", description="The text to update pronounciation for")
 @discord.option("pronunciation", description="How to pronounce the text")
@@ -338,7 +339,7 @@ async def add(ctx: discord.ApplicationContext, voice: str, text: str, pronunciat
 @discord.option(
     "voice",
     description="Which voice to edit",
-    choices=voices
+    choices=TTS_VOICES
 )
 @discord.option("text", description="The text to remove the pronunciation for")
 async def remove_pronunciation(ctx: discord.ApplicationContext, voice: str, text: str):
@@ -364,13 +365,13 @@ async def remove_pronunciation(ctx: discord.ApplicationContext, voice: str, text
         tsprint(f"Pronunciation for \"{text}\" not found in guild {ctx.guild_id}")
         await ctx.edit(content=f"❌ Pronunciation for \"{text}\" not found in **{ctx.guild.name}**")
     
-# name="list" doesn't match function name here because otherwise we have naming conflicts
+@pronunciation.command(name="list", description="List all pronunciations for a voice in this server")
+# name="list" doesn't match function name here because otherwise we have naming conflicts (with built-in list function)
 @discord.option(
     "voice",
     description="Which voice to check pronunciations for",
-    choices=voices
+    choices=TTS_VOICES
 )
-@pronunciation.command(name="list", description="List all pronunciations for a voice in this server")
 async def list_pronunciations(ctx: discord.ApplicationContext, voice: str):
     """
     Lists all pronunciations for a specified voice within the Discord server
@@ -419,6 +420,18 @@ async def list_pronunciations(ctx: discord.ApplicationContext, voice: str):
     else:
         await ctx.respond(f"❌ No pronunciations found for **{voice}** in **{ctx.guild.name}**!")
 
+settings = bot.create_group("settings", "Modify your settings (global)")
+
+@settings.command(name="voice", description="Get or set your default voice")
+@discord.option(
+    "voice",
+    description="The voice to set your default to",
+    choices=TTS_VOICES,
+    default=None
+)
+async def settings_voice(ctx: discord.ApplicationContext, voice: str | None = None):
+    if not voice:
+        await ctx.respond()
 
 # EVENT LOOP
 

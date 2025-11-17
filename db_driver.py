@@ -184,3 +184,11 @@ def list_pronunciations(guild_id: int, voice_name: str) -> dict[str, str]:
 
     # map and return
     return {text: pronunciation for text, pronunciation in pronunciation_rows}
+
+def set_user_voice(user_id: int, voice_name: str):
+    """
+    Sets a user's default voice to the specified voice name
+
+    ## Args:
+    """
+
