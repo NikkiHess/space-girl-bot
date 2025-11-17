@@ -44,7 +44,6 @@ TTS_VOICES = ["Marcus"]
 APP_EMOJI_CACHE = None
 
 # BUG: If you try to make TTS that is too long the bot gets confused and thinks it can play it when TTS Vibes says no.
-# TODO: bring cache back, copy old code?
 
 # HELPERS
 async def get_app_emoji() -> list[AppEmoji]:
@@ -129,9 +128,6 @@ async def on_ready():
     
     tsprint("Loaded Opus successfully.")
 
-    # handle AppEmoji cache
-    APP_EMOJI_CACHE = get_app_emoji()
-
     bot.loop.create_task(process_tts_queue())
 
     tsprint(f"{bot.user} is now ready!")
@@ -209,7 +205,6 @@ async def invite(ctx: discord.ApplicationContext):
         await ctx.respond("⚠️ I couldn’t DM you! Please check your privacy settings.")
 
 # TODO: make a command where you can select a voice so you don't have to type a voice every time
-# TODO: make it so it says "(voice emoji) (voice name): (text)"
 # BUG: bot won't say emojis, add default translations?
 @bot.command(description="Does TTS.", dm_permission=False)
 @discord.option(

@@ -10,6 +10,9 @@ import requests
 import base64
 import json
 
+# PyPI modules
+import emoji
+
 # my modules
 from nikki_util import timestamp_print as tsprint
 
@@ -19,17 +22,26 @@ os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 MAX_LEN = 300
 TTS_VOICES = ["marcus"]
 
-def adjust_pronunciation(input: str, voice: str):
+def adjust_pronunciation(text: str, voice: str):
     """
     Makes various adjustments to input text to make tts sound and function better
 
     ## Args:
-    - `input` (str): the text to adjust
+    - `text` (str): the text to adjust
     - `voice` (str): the voice to adjust pronunciation for
 
     ## Returns:
-    - `input` (str): the adjusted input
+    - `text` (str): the adjusted input
     """
+
+    # convert Unicode emojis to text
+    text = emoji.demojize(text, delimiters=("", " emoji"))
+    text = re.sub(
+        r"face_with_([a-z0-9_]+)",
+        lambda match: match.group(1).replace("_", " "),
+        text,
+        flags=re.IGNORECASE
+    )
 
     # marcus-related voice stuff
     if voice == "Marcus":
@@ -41,17 +53,20 @@ def adjust_pronunciation(input: str, voice: str):
             "minecraft": "mine craft",
             "lmao": "LMAO",
             "labubu": "luh booboo",
-            "bros": "bro's"
+            "bros": "bro's",
+            "pls": "please",
+            "brb": "b r b",
+            r'>:\(': "angry face"
         }
             
         for trigger, replacement in LEGACY_PRONUNCIATION_DICTIONARY.items():
-            input = re.sub(trigger, replacement, input, flags=re.IGNORECASE)
+            text = re.sub(trigger, replacement, text, flags=re.IGNORECASE)
 
         # if the whole input is no, add a period so marcus doesn't say number
-        if input.lower() == "no":
-            input = "no."
+        if text.lower() == "no":
+            text = "no."
 
-    return input
+    return text
 
 def download_and_queue_marcus_tts(input: str, tts_queue_dict: dict) -> bool:
     """
@@ -120,7 +135,3 @@ def download_and_queue_marcus_tts(input: str, tts_queue_dict: dict) -> bool:
     tts_queue_dict.append(filepath)
 
     return was_too_long
-
-if __name__ == "__main__":
-    download_and_queue_marcus_tts("lawl")
-    download_and_queue_marcus_tts("hello robert")
