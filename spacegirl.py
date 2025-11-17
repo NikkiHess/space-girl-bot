@@ -51,6 +51,9 @@ async def on_ready():
     """
     global VC_DICT
 
+    tsprint("Syncing commands...")
+    await bot.sync_commands()
+
     tsprint("Initializing guild VC list...")
     for guild in bot.guilds:
         VC_DICT[guild.id] = None
@@ -284,11 +287,11 @@ pronunciation = bot.create_group("pronunciation", "Modify pronunciations on a pe
 @pronunciation.command(description="Add a pronunciation to this server")
 @discord.option(
     "voice",
-    description="Which voice to use",
+    description="Which voice to edit",
     choices=voices
 )
-@discord.option("text", description="The text to translate")
-@discord.option("pronunciation", description="What to translate to")
+@discord.option("text", description="The text to update pronounciation for")
+@discord.option("pronunciation", description="How to pronounce the text")
 async def add(ctx: discord.ApplicationContext, voice: str, text: str, pronunciation: str):
     """
     Adds a pronunciation to the Discord server within the database
@@ -302,9 +305,9 @@ async def add(ctx: discord.ApplicationContext, voice: str, text: str, pronunciat
             description = f"",
             color = discord.Color.yellow()
         )
-        embed.add_field(name = "Text", value = text, inline = False)
-        embed.add_field(name = "Old Pronunciation", value = existing_pronunciation, inline = False)
-        embed.add_field(name = "New Pronunciation", value = pronunciation, inline = False)
+        embed.add_field(name = "Text", value = text)
+        embed.add_field(name = "Old Pronunciation", value = existing_pronunciation)
+        embed.add_field(name = "New Pronunciation", value = pronunciation)
 
         view = ConfirmView()
         await ctx.edit(
@@ -326,10 +329,40 @@ async def add(ctx: discord.ApplicationContext, voice: str, text: str, pronunciat
         description = f"Your pronunciation has been added to **{ctx.guild.name}**!",
         color = discord.Color.brand_green()
     )
-    embed.add_field(name = "Text", value = text, inline = False)
-    embed.add_field(name = "Pronunciation", value = pronunciation, inline = False)
+    embed.add_field(name = "Text", value = text)
+    embed.add_field(name = "Pronunciation", value = pronunciation)
 
     await ctx.edit(content=None, embed=embed, view=None)
+
+@pronunciation.command(name="delete", description="Remove a pronunciation from this server")
+@discord.option(
+    "voice",
+    description="Which voice to edit",
+    choices=voices
+)
+@discord.option("text", description="The text to remove the pronunciation for")
+async def remove_pronunciation(ctx: discord.ApplicationContext, voice: str, text: str):
+    """
+    Removes a pronunciation from the Discord server within the database
+    """
+    await ctx.respond("🔄 Processing...")
+
+    existing_pronunciation = dbd.get_pronunciation(ctx.guild_id, voice, text)
+    if existing_pronunciation:
+        tsprint(f"Removed pronunciation \"{text}\" -> \"{existing_pronunciation}\" from guild {ctx.guild_id}")
+        dbd.remove_pronunciation(ctx.guild_id, voice, text)
+    
+        embed = discord.Embed(
+            title = "Pronunciation Successfully Removed!",
+            description = f"Your pronunciation has been removed from **{ctx.guild.name}**!",
+            color = discord.Color.brand_red()
+        )
+        embed.add_field(name = "Text", value = text)
+
+        await ctx.edit(content=None, embed=embed, view=None)
+    else:
+        tsprint(f"Pronunciation for \"{text}\" not found in guild {ctx.guild_id}")
+        await ctx.edit(content=f"❌ Pronunciation for \"{text}\" not found in **{ctx.guild.name}**")
     
 # name="list" doesn't match function name here because otherwise we have naming conflicts
 @discord.option(
@@ -344,6 +377,8 @@ async def list_pronunciations(ctx: discord.ApplicationContext, voice: str):
     """
     pronunciations = dbd.list_pronunciations(ctx.guild_id, voice)
     
+    # TODO: fix this, shows up weirdly on mobile
+
     per_page = 10
     current_page = 1
     # 10 per page, add 1 to page number cuz floor divide
@@ -382,7 +417,7 @@ async def list_pronunciations(ctx: discord.ApplicationContext, voice: str):
         page_nav_view = PageNavView(num_pages, build_embed)
         await ctx.respond(embed=embed, view=page_nav_view)
     else:
-        await ctx.respond("❌ No pronunciations found for this guild!")
+        await ctx.respond(f"❌ No pronunciations found for **{voice}** in **{ctx.guild.name}**!")
 
 
 # EVENT LOOP
