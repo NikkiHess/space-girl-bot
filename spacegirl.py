@@ -161,6 +161,7 @@ async def on_voice_state_update(member: discord.Member,
     if vc is None or not vc.is_connected():
         return
     
+    # BUG: why doesn't this work properly? is it because we rely on VC_DICT? is there a better way?
     # if VC empty except for bots, leave
     non_bot_members = [member for member in vc.channel.members if not member.bot]
     if not non_bot_members:
