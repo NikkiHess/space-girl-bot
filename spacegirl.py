@@ -305,8 +305,11 @@ async def leave_vc(guild_id: int, ctx: Optional[discord.ApplicationContext] = No
     """
     Leaves a VC in a guild safely, optionally sending a message if ctx is given.
     """
+    tsprint("Bot attempting to leave VC...")
+    
     vc = VC_DICT.get(guild_id)
     if not vc or not vc.is_connected():
+        tsprint("Bot was not in a VC")
         if ctx:
             await ctx.respond("❌ I am not currently in a VC.")
         return
@@ -319,6 +322,8 @@ async def leave_vc(guild_id: int, ctx: Optional[discord.ApplicationContext] = No
 
     await vc.disconnect()
     VC_DICT[guild_id] = None
+
+    tsprint("Bot left VC successfully")
 
 @bot.command(description="Leaves whatever voice chat it's currently in.")
 async def leave(ctx: discord.ApplicationContext):

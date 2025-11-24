@@ -43,9 +43,11 @@ def adjust_pronunciation(text: str, voice: str):
         flags=re.IGNORECASE
     )
 
+    # TODO: handle Discord emojis
+
     # marcus-related voice stuff
     if voice == "Marcus":
-        # TODO: add this to database, make way to add global pronunciation via bot
+        # TODO: add this to database, make way to add global pronunciation via bot (NIKKI ONLY)
         LEGACY_PRONUNCIATION_DICTIONARY = {
             "lol": "lawl",
             "uwu": "ooh woo",
@@ -61,6 +63,8 @@ def adjust_pronunciation(text: str, voice: str):
             
         for trigger, replacement in LEGACY_PRONUNCIATION_DICTIONARY.items():
             text = re.sub(trigger, replacement, text, flags=re.IGNORECASE)
+
+        # TODO: add filtering for "hahaha" -> "ha ha ha", applies to any number of ha's
 
         # if the whole input is no, add a period so marcus doesn't say number
         if text.lower() == "no":
