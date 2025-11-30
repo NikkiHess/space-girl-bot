@@ -23,6 +23,7 @@ import tts_driver as ttsd
 from errors import *
 import db_driver as dbd # NOT DEAD BY DAYLIGHT
 from views import *
+from ttsvibes_voices import TTSVibesVoice as TVV
 
 VC_DICT: Dict[int, Optional[discord.VoiceClient]] = dict()
 TTS_QUEUE_DICT: Dict[int, Dict[str, Deque[str]]] = dict()
@@ -38,8 +39,6 @@ intents.members = True
 intents.guilds = True
 
 bot = discord.Bot(intents=intents)
-
-TTS_VOICES = ["Marcus"]
 
 APP_EMOJI_CACHE = None
 
@@ -211,7 +210,7 @@ async def invite(ctx: discord.ApplicationContext):
 @discord.option(
     "voice",
     description="Which voice to use",
-    choices=TTS_VOICES
+    choices=ttsd.TTS_VOICES
 )
 @discord.option(
     "input", 
@@ -242,19 +241,23 @@ async def tts(ctx: discord.ApplicationContext, voice: str, input: str):
     if VC_DICT[ctx.guild_id] is None:
         VC_DICT[ctx.guild_id] = await voice_state.channel.connect(reconnect=False)
     
-    # pick the right tts based on chosen voice
-    match voice.lower():
-        case "marcus":
-            was_too_long = ttsd.download_and_queue_marcus_tts(input, TTS_QUEUE_DICT[ctx.guild_id]["marcus"])
-        case _:
-            await ctx.followup.send("❌ Unknown voice selected.")
-            return
+    was_too_long = False # define this early so there's no chance it's undefined
+    if voice in ttsd.TTS_VOICES:
+        voice_internal = voice.replace(" ", "_") # internal voice names are goofy, TODO: is there a better way to do this?
+
+        # is this as TTSVibes voice?
+        if voice_internal in TVV._member_names_:
+            was_too_long = ttsd.download_and_queue_tts_vibes(
+                input,
+                TVV[voice_internal], 
+                TTS_QUEUE_DICT[ctx.guild_id][voice]
+            )
         
     tsprint(f"Queued TTS \"{input}\" in guild {ctx.guild_id}")
     
     # handle message intro with voice emoji and name
     app_emoji = await get_random_app_emoji(voice)
-    message_intro = "🎤 Queued TTS"
+    message_intro = f"🎤 {voice}"
     if app_emoji:
         message_intro = f"{app_emoji} {voice}"
 
@@ -338,7 +341,7 @@ pronunciation = bot.create_group("pronunciation", "Modify pronunciations on a pe
 @discord.option(
     "voice",
     description="Which voice to edit",
-    choices=TTS_VOICES
+    choices=ttsd.TTS_VOICES
 )
 @discord.option("text", description="The text to update pronounciation for")
 @discord.option("pronunciation", description="How to pronounce the text")
@@ -388,7 +391,7 @@ async def add(ctx: discord.ApplicationContext, voice: str, text: str, pronunciat
 @discord.option(
     "voice",
     description="Which voice to edit",
-    choices=TTS_VOICES
+    choices=ttsd.TTS_VOICES
 )
 @discord.option("text", description="The text to remove the pronunciation for")
 async def remove_pronunciation(ctx: discord.ApplicationContext, voice: str, text: str):
@@ -419,7 +422,7 @@ async def remove_pronunciation(ctx: discord.ApplicationContext, voice: str, text
 @discord.option(
     "voice",
     description="Which voice to check pronunciations for",
-    choices=TTS_VOICES
+    choices=ttsd.TTS_VOICES
 )
 async def list_pronunciations(ctx: discord.ApplicationContext, voice: str):
     """
@@ -475,7 +478,7 @@ settings = bot.create_group("settings", "Modify your settings (global)")
 @discord.option(
     "voice",
     description="The voice to set your default to",
-    choices=TTS_VOICES,
+    choices=ttsd.TTS_VOICES,
     default=None
 )
 async def settings_voice(ctx: discord.ApplicationContext, voice: str | None = None):

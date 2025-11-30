@@ -15,12 +15,13 @@ import emoji
 
 # my modules
 from nikki_util import timestamp_print as tsprint
+from ttsvibes_voices import TTSVibesVoice as TVV
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
 MAX_LEN = 300
-TTS_VOICES = ["marcus"]
+TTS_VOICES = [voice.replace("_", " ") for voice in TVV._member_names_]
 
 def adjust_pronunciation(text: str, voice: str):
     """
@@ -72,19 +73,20 @@ def adjust_pronunciation(text: str, voice: str):
 
     return text
 
-def download_and_queue_marcus_tts(input: str, tts_queue_dict: dict) -> bool:
+def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_dict: dict) -> bool:
     """
-    downloads Marcus TTS from the TTS Vibes API and adds it to the TTS queue
+    downloads a voice line from the TTS Vibes API and adds it to the TTS queue
 
     ## Args:
     - `input` (str): the text to speak (max 300 chars)
+    - `voice` (TVV): the TTS Vibes voice to use
     - `tts_queue` (dict): the tts queue (from dict) to add to
 
     ## Returns:
     - `was_too_long` (bool): whether the input got trimmed/was too long
     """
 
-    tsprint("Getting Marcus TTS...")
+    tsprint(f"Getting {voice.name} TTS...")
 
     was_too_long = False
 
@@ -97,7 +99,7 @@ def download_and_queue_marcus_tts(input: str, tts_queue_dict: dict) -> bool:
     filename = re.sub(r'[\\/*?:"<>,|]', "", input)
     filepath = os.path.join("downloads", f"{filename}.mp3")
 
-    input = adjust_pronunciation(input, "Marcus")
+    input = adjust_pronunciation(input, voice.name)
 
     # request from the TTS Vibes API (subject to change)
     url = "https://ttsvibes.com/?/generate"
@@ -109,7 +111,7 @@ def download_and_queue_marcus_tts(input: str, tts_queue_dict: dict) -> bool:
         "user-agent": "Mozilla/5.0"
     }
     data = {
-        "selectedVoiceValue": "tt-en_male_narration",
+        "selectedVoiceValue": voice.value,
         "text": input
     }
 
