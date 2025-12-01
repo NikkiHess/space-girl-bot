@@ -21,7 +21,9 @@ DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
 MAX_LEN = 300
-TTS_VOICES = [voice.replace("_", " ") for voice in TVV._member_names_]
+TTSVIBES_VOICES = [voice.replace("_", " ") for voice in TVV._member_names_]
+
+TTS_VOICES = TTSVIBES_VOICES + [] # you can add more :3
 
 def adjust_pronunciation(text: str, voice: str):
     """
@@ -46,9 +48,10 @@ def adjust_pronunciation(text: str, voice: str):
 
     # TODO: handle Discord emojis
 
-    # marcus-related voice stuff
-    if voice == "Marcus":
-        # TODO: add this to database, make way to add global pronunciation via bot (NIKKI ONLY)
+    # TODO: add this to database, make way to add global pronunciation via bot (NIKKI ONLY)
+    
+    # TTS vibes pronounces the same words wrongly across voices
+    if voice in TTSVIBES_VOICES:
         LEGACY_PRONUNCIATION_DICTIONARY = {
             "lol": "lawl",
             "uwu": "ooh woo",
@@ -59,7 +62,10 @@ def adjust_pronunciation(text: str, voice: str):
             "bros": "bro's",
             "pls": "please",
             "brb": "b r b",
-            r'>:\(': "angry face"
+            r">:\(": "angry face",
+            r":\)": "smiley face",
+            r":\(": "sad face",
+            "regex": "regh ex"
         }
             
         for trigger, replacement in LEGACY_PRONUNCIATION_DICTIONARY.items():
@@ -67,10 +73,10 @@ def adjust_pronunciation(text: str, voice: str):
 
         # TODO: add filtering for "hahaha" -> "ha ha ha", applies to any number of ha's
 
-        # if the whole input is no, add a period so marcus doesn't say number
+        # if the whole input is no, add a period so voice doesn't say number
         if text.lower() == "no":
             text = "no."
-
+        
     return text
 
 def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_dict: dict) -> bool:
