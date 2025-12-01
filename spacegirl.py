@@ -164,7 +164,7 @@ async def on_voice_state_update(member: discord.Member,
     # if VC empty except for bots, leave
     non_bot_members = [member for member in vc.channel.members if not member.bot]
     if not non_bot_members:
-        await leave_vc(guild_id)
+        await try_leave_vc(guild_id)
         
 
 @bot.event
@@ -204,26 +204,25 @@ async def invite(ctx: discord.ApplicationContext):
     except discord.Forbidden:
         await ctx.respond("⚠️ I couldn’t DM you! Please check your privacy settings.")
 
-# TODO: make a command where you can select a voice so you don't have to type a voice every time
-# BUG: bot won't say emojis, add default translations?
 @bot.command(description="Does TTS.", dm_permission=False)
-@discord.option(
-    "voice",
-    description="Which voice to use",
-    choices=ttsd.TTS_VOICES
-)
 @discord.option(
     "input", 
     type=str, 
     description="The input to read (MAX 300 CHARS)"
 )
-async def tts(ctx: discord.ApplicationContext, voice: str, input: str):
+@discord.option( # OPTIONAL ARGUMENTS NEED TO BE AFTER NON-OPTIONAL
+    "voice",
+    description="Which voice to use (optional)",
+    choices=ttsd.TTS_VOICES,
+    default=None # make argument optional
+)
+async def tts(ctx: discord.ApplicationContext, input: str, voice: str):
     """
     Does TTS, currently only Marcus.
     """
     global VC_DICT, TTS_QUEUE_DICT
 
-    # make sure dicts have entries for this guild
+    # make sure VC and TTS_QUEUE dicts have entries for this guild
     if ctx.guild_id not in VC_DICT:
         tsprint(f"Adding guild to the TTS queue system...")
         VC_DICT[ctx.guild_id] = None
@@ -231,16 +230,32 @@ async def tts(ctx: discord.ApplicationContext, voice: str, input: str):
         tsprint(f"Adding voices to the TTS queue system in {ctx.guild_id}...")
         TTS_QUEUE_DICT[ctx.guild_id] = {voice: deque() for voice in ttsd.TTS_VOICES}
 
+    # silently acknowledge the command
     await ctx.defer()
 
+    # if the user isn't in a VC, it doesn't make sense to do TTS
+    # TODO: evaluate this, server setting?
     voice_state = ctx.author.voice
     if voice_state is None:
         await ctx.respond("❌ You are not in a VC.")
         return
 
-    if VC_DICT[ctx.guild_id] is None:
+    current_vc = VC_DICT.get(ctx.guild_id)
+    # if the bot is not in the current VC, connect it
+    if current_vc is None or current_vc.channel != voice_state.channel:
+        await try_leave_vc(ctx.guild_id)
         VC_DICT[ctx.guild_id] = await voice_state.channel.connect(reconnect=False)
     
+    # if no voice is specified, need to check if user has a default set and use it
+    if voice is None:
+        db_user_voice = dbd.get_user_voice(ctx.author.id)
+        if db_user_voice:
+            voice = db_user_voice
+        else:
+            await ctx.respond("❌ You need to specify a voice or set a default with /settings voice")
+            return
+
+    # download and queue the voice line
     was_too_long = False # define this early so there's no chance it's undefined
     if voice in ttsd.TTS_VOICES:
         voice_internal = voice.replace(" ", "_") # internal voice names are goofy, TODO: is there a better way to do this?
@@ -304,9 +319,9 @@ async def join(ctx: discord.ApplicationContext, vc: discord.VoiceChannel = None)
 
     await ctx.edit(content=f"✅ Successfully joined **{voice_channel.name}**! Use /tts to speak.")
 
-async def leave_vc(guild_id: int, ctx: Optional[discord.ApplicationContext] = None):
+async def try_leave_vc(guild_id: int, ctx: Optional[discord.ApplicationContext] = None):
     """
-    Leaves a VC in a guild safely, optionally sending a message if ctx is given.
+    Attempts to leave a VC in a guild, optionally sending a message if ctx is given.
     """
     tsprint("Bot attempting to leave VC...")
     
@@ -333,7 +348,7 @@ async def leave(ctx: discord.ApplicationContext):
     """
     Command wrapper to leave VC from current guild.
     """
-    await leave_vc(ctx.guild_id, ctx)
+    await try_leave_vc(ctx.guild_id, ctx)
 
 pronunciation = bot.create_group("pronunciation", "Modify pronunciations on a per-server basis")
 
@@ -478,12 +493,34 @@ settings = bot.create_group("settings", "Modify your settings (global)")
 @discord.option(
     "voice",
     description="The voice to set your default to",
-    choices=ttsd.TTS_VOICES,
+    choices=["None"] + ttsd.TTS_VOICES,
     default=None
 )
 async def settings_voice(ctx: discord.ApplicationContext, voice: str | None = None):
+    author_id = ctx.author.id
+
+    # no voice specified = get settings value
     if not voice:
-        await ctx.respond()
+        voice_name = dbd.get_user_voice(author_id)
+
+        if voice_name:
+            await ctx.respond(f"🗣️ Your current voice is **{voice_name}**!")
+        else:
+            await ctx.respond(f"❌ You don't currently have a default voice set.")
+            
+        return
+    
+    # if the None option is selected, convert to TYPE None
+    if voice == "None":
+        voice = None
+    # voice is guaranteed to be specified at this point
+    # set settings value
+    dbd.set_user_voice(author_id, voice)
+
+    if voice:
+        await ctx.respond(f"✅ Your default voice has been set to **{voice}**! You can now use /tts without specifying a voice.")
+    else:
+        await ctx.respond(f"✅ Your default voice has been cleared. You must now specify a voice when using /tts.")
 
 # EVENT LOOP
 
