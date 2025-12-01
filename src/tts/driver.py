@@ -14,8 +14,8 @@ import json
 import emoji
 
 # my modules
-from nikki_util import timestamp_print as tsprint
-from ttsvibes_voices import TTSVibesVoice as TVV
+from ..utils.logging_utils import timestamp_print as tsprint
+from ..tts.voices import TTSVibesVoice as TVV
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
@@ -47,8 +47,9 @@ def adjust_pronunciation(text: str, voice: str):
     )
 
     # TODO: handle Discord emojis
-
     # TODO: add this to database, make way to add global pronunciation via bot (NIKKI ONLY)
+    # TODO: handle "wa" -> "wah", but not when it would be washington (after a comma)
+    # TODO: add filtering for "hahaha" -> "ha ha ha", applies to any number of ha's
     
     # TTS vibes pronounces the same words wrongly across voices
     if voice in TTSVIBES_VOICES:
@@ -71,7 +72,6 @@ def adjust_pronunciation(text: str, voice: str):
         for trigger, replacement in LEGACY_PRONUNCIATION_DICTIONARY.items():
             text = re.sub(trigger, replacement, text, flags=re.IGNORECASE)
 
-        # TODO: add filtering for "hahaha" -> "ha ha ha", applies to any number of ha's
 
         # if the whole input is no, add a period so voice doesn't say number
         if text.lower() == "no":

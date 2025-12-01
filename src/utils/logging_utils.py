@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
 """
-just utils for me
+Logging-related utils
 """
 
 from datetime import datetime
 from pathlib import Path
 
-LOG_FILE = Path("program.log")
+LOG_FILE = Path("../program.log")
 LOG_FILE.open("w", encoding="utf-8").close()
 
 def timestamp_print(message: str, log: bool = True):
