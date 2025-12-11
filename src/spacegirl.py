@@ -18,8 +18,6 @@ from .errors import *
 from .db import driver as dbd # NOT DEAD BY DAYLIGHT
 from .views.views import *
 
-INVITE_LINK = "https://discord.com/oauth2/authorize?client_id=1424873603790540982&scope=bot&permissions=2184268800"
-
 # get intents
 intents = discord.Intents.default()
 intents.voice_states = True
@@ -85,27 +83,7 @@ async def on_command_error(ctx: discord.ApplicationContext, error):
 
 # SLASH COMMANDS
 
-@bot.command(description="DMs you the link to invite me to your server", dm_permission=True)
-async def invite(ctx: discord.ApplicationContext):
-    """
-    Sends the relevant invite link to the user who asked
-    """
-    embed = discord.Embed(
-        title="✨ Invite Space Girl Bot!",
-        description=f"Click the button below to add me to your server!",
-        color=0xED99A0  # cute pink color
-    )
-    embed.add_field(name="Invite Link", value=f"[Click here!]({INVITE_LINK})", inline=False)
 
-    try:
-        # only send this message in guilds
-        if ctx.guild:
-            await ctx.respond("📬 I’ve sent you my invite link via DM!")
-            await ctx.author.send(embed=embed)
-        else:
-            await ctx.respond(embed=embed)
-    except discord.Forbidden:
-        await ctx.respond("⚠️ I couldn’t DM you! Please check your privacy settings.")
 
 if __name__ == "__main__":
     # load in our token
