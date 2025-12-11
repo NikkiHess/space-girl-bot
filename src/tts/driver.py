@@ -34,7 +34,18 @@ def handle_emojis(text: str) -> str:
     :return: the "more speakable" string
     :rtype: str
     """
+    # convert Unicode emojis to text
+    text = emoji.demojize(text, delimiters=("", " emoji"))
+    text = re.sub(
+        r"face_with_([a-z0-9_]+)",
+        lambda match: match.group(1).replace("_", " "),
+        text,
+        flags=re.IGNORECASE
+    )
+
     return text
+
+print(handle_emojis("😍"))
 
 def adjust_pronunciation(text: str, voice: str) -> str:
     """
@@ -48,14 +59,6 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     :rtype: str
     """
 
-    # convert Unicode emojis to text
-    text = emoji.demojize(text, delimiters=("", " emoji"))
-    text = re.sub(
-        r"face_with_([a-z0-9_]+)",
-        lambda match: match.group(1).replace("_", " "),
-        text,
-        flags=re.IGNORECASE
-    )
     text = handle_emojis(text)
 
     # TODO: handle Discord emojis
