@@ -86,7 +86,7 @@ def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_dict: dict) -
     ## Args:
     - `input` (str): the text to speak (max 300 chars)
     - `voice` (TVV): the TTS Vibes voice to use
-    - `tts_queue` (dict): the tts queue (from dict) to add to
+    - `tts_queue_dict` (dict): the tts queue (from dict) to add to
 
     ## Returns:
     - `was_too_long` (bool): whether the input got trimmed/was too long

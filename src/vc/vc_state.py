@@ -9,7 +9,10 @@ from typing import Dict, Optional
 # pycord
 import discord
 
-class VoiceState:
+# my modules
+from ..utils.logging_utils import timestamp_print as tsprint
+
+class VCState():
     "Manages the bot's voice channel state"
 
     def __init__(self):
@@ -27,9 +30,11 @@ class VoiceState:
         - `guild_id` (int): the guild ID to verify/initialize
         """
         if guild_id not in self.vc_dict:
+            tsprint(f"Initializing guild {guild_id} in VC dict...")
             self.vc_dict[guild_id] = None
 
         if guild_id not in self.last_triggered_channel_dict:
+            tsprint(f"Initializing guild {guild_id} in last triggered dict...")
             self.last_triggered_channel_dict[guild_id] = None
 
     def set_vc_state(self, guild_id: int, vc: Optional[discord.VoiceClient]):

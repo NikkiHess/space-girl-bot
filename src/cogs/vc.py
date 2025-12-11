@@ -20,9 +20,12 @@ from ..tts.voices import TTSVibesVoice as TVV
 from ..utils.logging_utils import timestamp_print as tsprint
 from ..utils.discord_utils import get_random_app_emoji
 from ..errors import *
+from ..vc.vc_state import VCState
+from ..vc.tts_core import TTSManager, TTSBackgroundTask
+from ..tts import driver as ttsd
 
 # required for cogs API
-def setup(bot):
+def setup(bot: discord.Bot):
     bot.add_cog(VCCog(bot))
 
 class VCCog(commands.Cog):
@@ -33,9 +36,9 @@ class VCCog(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.vc_dict: Dict[int, Optional[discord.VoiceClient]] = dict()
-        self.tts_queue_dict: Dict[int, Dict[str, Deque[str]]] = dict()
-        self.last_triggered_channel_dict: Dict[int, int] = dict()
+        self.vc_state = VCState()
+        self.tts_manager = TTSManager()
+        self.bg_task = TTSBackgroundTask()
 
     # HELPERS
     async def try_leave_vc(self, guild_id: int, ctx: Optional[discord.ApplicationContext] = None):
@@ -44,7 +47,7 @@ class VCCog(commands.Cog):
         """
         tsprint("Bot attempting to leave VC...")
         
-        vc = self.vc_dict.get(guild_id)
+        vc = self.vc_state.vc_dict.get(guild_id)
         if not vc or not vc.is_connected():
             tsprint("Bot was not in a VC")
             if ctx:
@@ -55,15 +58,12 @@ class VCCog(commands.Cog):
             await ctx.respond("👋🏻 Left voice!")
 
         # reset triggered channel
-        self.last_triggered_channel_dict[guild_id] = None
-
+        self.vc_state.set_last_triggered(guild_id, None)
         await vc.disconnect()
-        self.vc_dict[guild_id] = None
-
+        self.vc_state.set_vc_state(guild_id, None)
         tsprint("Bot left VC successfully")
 
     # COMMANDS
-
     @discord.slash_command(
         name="tts",
         description="Does TTS.",
@@ -84,29 +84,24 @@ class VCCog(commands.Cog):
         """
         Does TTS, currently only Marcus.
         """
-        # make sure VC and TTS_QUEUE dicts have entries for this guild
-        if ctx.guild_id not in self.vc_dict:
-            tsprint(f"Adding guild to the TTS queue system...")
-            self.vc_dict[ctx.guild_id] = None
-        if ctx.guild_id not in self.tts_queue_dict:
-            tsprint(f"Adding voices to the TTS queue system in {ctx.guild_id}...")
-            self.tts_queue_dict[ctx.guild_id] = {voice: deque() for voice in ttsd.TTS_VOICES}
+        # make sure vc and tts queue dicts have entries for this guild
+        self.vc_state.init_guild(ctx.guild_id)
+        self.tts_manager.init_guild(ctx.guild_id)
 
         # silently acknowledge the command
         await ctx.defer()
 
         # if the user isn't in a VC, it doesn't make sense to do TTS
         # TODO: evaluate this, server setting?
-        voice_state = ctx.author.voice
-        if voice_state is None:
+        author_vc = ctx.author.voice
+        if author_vc is None:
             await ctx.respond("❌ You are not in a VC.")
             return
 
-        current_vc = self.vc_dict.get(ctx.guild_id)
-        # if the bot is not in the current VC, connect it
-        if current_vc is None or current_vc.channel != voice_state.channel:
+        if not self.vc_state.is_connected_in_channel(ctx.guild_id, author_vc.channel):
             await self.try_leave_vc(ctx.guild_id)
-            self.vc_dict[ctx.guild_id] = await voice_state.channel.connect(reconnect=False)
+            vc = await author_vc.channel.connect(reconnect=False)
+            self.vc_state.set_vc_state(ctx.guild_id, vc)
         
         # if no voice is specified, need to check if user has a default set and use it
         if voice is None:
@@ -120,15 +115,12 @@ class VCCog(commands.Cog):
         # download and queue the voice line
         was_too_long = False # define this early so there's no chance it's undefined
         if voice in ttsd.TTS_VOICES:
-            voice_internal = voice.replace(" ", "_") # internal voice names are goofy, TODO: is there a better way to do this?
+            voice_internal = voice.replace(" ", "_") # internal voice names are goofy, translate them pls
 
             # is this as TTSVibes voice?
             if voice_internal in TVV._member_names_:
-                was_too_long = ttsd.download_and_queue_tts_vibes(
-                    input,
-                    TVV[voice_internal], 
-                    self.tts_queue_dict[ctx.guild_id][voice]
-                )
+                # self.tts_manager.init_guild(ctx.guild_id)
+                was_too_long = self.tts_manager.download_and_queue(input, TVV[voice_internal], ctx.guild_id)
             
         tsprint(f"Queued TTS \"{input}\" in guild {ctx.guild_id}")
         
@@ -154,28 +146,25 @@ class VCCog(commands.Cog):
         """
         Forces the bot to join VC.
         """
-        self.last_triggered_channel_dict[ctx.guild_id] = ctx.channel_id
+        self.vc_state.init_guild(ctx.guild_id)
+        self.vc_state.set_last_triggered(ctx.guild_id, ctx.channel_id)
 
-        voice_state = ctx.author.voice
-
+        author_vc = ctx.author.voice
         # not in a vc
-        if vc is None and voice_state is None:
+        if vc is None and author_vc is None:
             await ctx.respond("❌ You are not in a VC.")
             return
         
-        if self.vc_dict[ctx.guild_id] is not None:
+        if self.vc_state(ctx.guild_id):
             await ctx.respond("❌ Already connected in this guild.")
             return
         
         await ctx.defer(invisible=False)
         await ctx.respond(content="🛜 Connecting...")
         
-        if vc is None:
-            voice_channel = voice_state.channel
-        else:
-            voice_channel = vc
-        
-        self.vc_dict[ctx.guild_id] = await voice_channel.connect(reconnect=False)
+        voice_channel = vc or author_vc.channel # shorthand for separate ifs
+        vc_client = await voice_channel.connect(reconnect=False)
+        self.vc_state.set_vc_state(ctx.guild_id, vc_client)
 
         await ctx.edit(content=f"✅ Successfully joined **{voice_channel.name}**! Use /tts to speak.")
 
@@ -187,7 +176,6 @@ class VCCog(commands.Cog):
         await self.try_leave_vc(ctx.guild_id, ctx)
 
     # EVENTS
-
     @discord.Cog.listener()
     async def on_voice_state_update(
         self,
@@ -210,12 +198,12 @@ class VCCog(commands.Cog):
         # check if the bot left the VC
         if member.id == self.bot.user.id:
             if after.channel is None:
-                self.vc_dict[guild_id] = None
+                self.vc_state.set_vc_state(guild_id, None)
                 tsprint(f"Bot left VC {before.channel.name} in {guild_id}.")
             return # no need to check for emptiness if bot left
         
         # check if the bot is in a VC in this guild, just to make sure
-        vc = self.vc_dict.get(guild_id)
+        vc = self.vc_state.get_vc_state(guild_id)
         if vc is None or not vc.is_connected():
             return
         
@@ -223,6 +211,7 @@ class VCCog(commands.Cog):
         # if VC empty except for bots, leave
         non_bot_members = [m for m in vc.channel.members if not m.bot]
         if not non_bot_members:
+            tsprint(f"Nobody in VC {vc.channel.name} except bots. Leaving.")
             await self.try_leave_vc(guild_id)
 
     @discord.Cog.listener()
@@ -230,57 +219,10 @@ class VCCog(commands.Cog):
         tsprint("Initializing guild VC list...")
 
         for guild in self.bot.guilds:
-            self.vc_dict[guild.id] = None
-            self.tts_queue_dict[guild.id] = dict()
-
-            for voice in ttsd.TTS_VOICES:
-                self.tts_queue_dict[guild.id][voice] = deque()
+            self.vc_state.init_guild(guild.id)
+            self.tts_manager.init_guild(guild.id)
         
         tsprint("Creating TTS queue task in event loop...")
-        self.bot.loop.create_task(self.process_tts_queue())
+        self.bg_task.start(self.bot, self.vc_state, self.tts_manager)
 
         tsprint("VC Cog is now ready!")
-
-    async def process_tts_queue(self):
-        """
-        Processes TTS queue - runs in Pycord event loop
-        """
-        ffmpeg_path = None
-        
-        match platform.system():
-            case "Windows":
-                ffmpeg_path = os.path.join("depend", "ffmpeg.exe")
-            case "Darwin":
-                ffmpeg_path = "/opt/homebrew/bin/ffmpeg"
-            case _:
-                raise OSNotSupportedError()
-        
-        def make_after_callback(tts_filename, guild_id):
-            def after_play(_):  # The `_` is the exception Pycord passes
-                tsprint(f"Audio done playing in {guild_id}: {tts_filename}")
-                try:
-                    os.remove(tts_filename)
-                    tsprint(f"Deleted \"{tts_filename}\"")
-                except FileNotFoundError:
-                    tsprint(f"File {tts_filename} already deleted")
-            return after_play
-
-        while True:
-            for guild_id, vc in self.vc_dict.items():
-                if vc is None or not vc.is_connected():
-                    continue
-
-                for voice, queue in self.tts_queue_dict[guild_id].items():
-                    if queue and not vc.is_playing():
-                        tts_filename = queue.popleft()
-                        tsprint(f"Playing queued TTS {tts_filename} in guild {guild_id}")
-
-                        try:
-                            tts_audio_source = discord.FFmpegOpusAudio(
-                                executable=ffmpeg_path,
-                                source=tts_filename
-                            )
-                            vc.play(tts_audio_source, after=make_after_callback(tts_filename, guild_id))
-                        except Exception as e:
-                            tsprint(f"Could not play audio for guild {guild_id}: {e}")
-            await asyncio.sleep(0.1)
