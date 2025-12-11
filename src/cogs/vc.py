@@ -21,7 +21,7 @@ from ..utils.logging_utils import timestamp_print as tsprint
 from ..utils.discord_utils import get_random_app_emoji
 from ..errors import *
 from ..vc.vc_state import VCState
-from ..vc.tts_core import TTSManager, TTSBackgroundTask
+from ..tts.tts_core import TTSManager, TTSBackgroundTask
 from ..tts import driver as ttsd
 
 # required for cogs API

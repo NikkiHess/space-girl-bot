@@ -15,10 +15,10 @@ import discord
 
 # my modules
 from ..tts import driver as ttsd
-from ..tts.voices import TTSVibesVoice as TVV
+from .voices import TTSVibesVoice as TVV
 from ..errors import *
 from ..utils.logging_utils import timestamp_print as tsprint
-from .vc_state import VCState
+from ..vc.vc_state import VCState
 
 class TTSManager():
     """
@@ -52,7 +52,7 @@ class TTSManager():
         :return: whether the text was trimmed for being too long
         :rtype: bool
         """
-        queue_dict = self.tts_queue_dict[guild_id][voice.name.replace(" ", "_")]
+        queue_dict = self.tts_queue_dict[guild_id][voice.name]
 
         return ttsd.download_and_queue_tts_vibes(input, voice, queue_dict)
     
