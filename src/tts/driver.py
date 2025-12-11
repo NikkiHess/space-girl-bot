@@ -25,16 +25,27 @@ TTSVIBES_VOICES = [voice.replace("_", " ") for voice in TVV._member_names_]
 
 TTS_VOICES = TTSVIBES_VOICES + [] # you can add more :3
 
-def adjust_pronunciation(text: str, voice: str):
+def handle_emojis(text: str) -> str:
+    """
+    Transform emojis into "more speakable" text
+    
+    :param text: The text (theoretically) containing emojis
+    :type text: str
+    :return: the "more speakable" string
+    :rtype: str
+    """
+    return text
+
+def adjust_pronunciation(text: str, voice: str) -> str:
     """
     Makes various adjustments to input text to make tts sound and function better
 
-    ## Args:
-    - `text` (str): the text to adjust
-    - `voice` (str): the voice to adjust pronunciation for
-
-    ## Returns:
-    - `text` (str): the adjusted input
+    :param text: the text to adjust
+    :type text: str
+    :param voice: the voice to adjust pronunciation for
+    :type voice: str
+    :return: the adjusted input
+    :rtype: str
     """
 
     # convert Unicode emojis to text
@@ -45,6 +56,7 @@ def adjust_pronunciation(text: str, voice: str):
         text,
         flags=re.IGNORECASE
     )
+    text = handle_emojis(text)
 
     # TODO: handle Discord emojis
     # TODO: add this to database, make way to add global pronunciation via bot (NIKKI ONLY)
@@ -66,6 +78,7 @@ def adjust_pronunciation(text: str, voice: str):
             r">:\(": "angry face",
             r":\)": "smiley face",
             r":\(": "sad face",
+            r":\o": "sad face",
             "regex": "regh ex"
         }
             
@@ -83,13 +96,15 @@ def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_dict: dict) -
     """
     downloads a voice line from the TTS Vibes API and adds it to the TTS queue
 
-    ## Args:
-    - `input` (str): the text to speak (max 300 chars)
-    - `voice` (TVV): the TTS Vibes voice to use
-    - `tts_queue_dict` (dict): the tts queue (from dict) to add to
 
-    ## Returns:
-    - `was_too_long` (bool): whether the input got trimmed/was too long
+    :param input: the text to speak (max 300 chars)
+    :type input: str
+    :param voice: the TTS Vibes voice to use
+    :type voice: TVV
+    :param tts_queue_dict: the tts queue (from dict) to add to
+    :type tts_queue_dict: dict
+    :return: whether the input got trimmed/was too long
+    :rtype: bool
     """
 
     tsprint(f"Getting {voice.name} TTS...")
