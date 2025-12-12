@@ -24,9 +24,11 @@ intents.voice_states = True
 intents.members = True
 intents.guilds = True
 
+tsprint("Starting Space Girl...")
+
 bot = discord.Bot(intents=intents)
 
-# load cogs
+tsprint("Loading cogs...")
 for filename in os.listdir(os.path.join(os.path.dirname(__file__), "cogs")):
     if filename.endswith(".py") and filename != "__init__.py":
         mod = f".cogs.{filename[:-3]}"
@@ -79,11 +81,6 @@ async def on_command_error(ctx: discord.ApplicationContext, error):
     else:
         # fallback logging
         print(f"⚠️ Something went wrong!\n{error}")
-
-
-# SLASH COMMANDS
-
-
 
 if __name__ == "__main__":
     # load in our token
