@@ -67,7 +67,7 @@ class TTSBackgroundTask():
 
         match platform.system():
             case "Windows":
-                self.fmpeg_path = os.path.join("depend", "ffmpeg.exe")
+                self.ffmpeg_path = os.path.join("depend", "ffmpeg.exe")
             case "Darwin":
                 self.ffmpeg_path = "/opt/homebrew/bin/ffmpeg"
             case _:
