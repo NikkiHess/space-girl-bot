@@ -13,10 +13,10 @@ import importlib
 import discord # pycord
 
 # my modules
-from .utils.logging_utils import timestamp_print as tsprint
-from .errors import *
-from .db import driver as dbd # NOT DEAD BY DAYLIGHT
-from .views.views import *
+from src.utils.logging_utils import timestamp_print as tsprint
+from src.errors import *
+from src.db import driver as dbd # NOT DEAD BY DAYLIGHT
+from src.views.views import *
 
 # get intents
 intents = discord.Intents.default()

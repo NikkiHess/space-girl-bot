@@ -12,15 +12,15 @@ import discord
 from discord.ext import commands
 
 # my modules
-from ..db import driver as dbd
-from ..tts import driver as ttsd
-from ..tts.voices import TTSVibesVoice as TVV
-from ..utils.logging_utils import timestamp_print as tsprint
-from ..utils.discord_utils import get_random_app_emoji
-from ..errors import *
-from ..vc.vc_state import VCState
-from ..tts.tts_core import TTSManager, TTSBackgroundTask
-from ..tts import driver as ttsd
+from src.db import driver as dbd
+from src.tts import driver as ttsd
+from src.tts.voices import TTSVibesVoice as TVV
+from src.utils.logging_utils import timestamp_print as tsprint
+from src.utils.discord_utils import get_random_app_emoji
+from src.errors import *
+from src.vc.vc_state import VCState
+from src.tts.tts_core import TTSManager, TTSBackgroundTask
+from src.tts import driver as ttsd
 
 # required for cogs API
 def setup(bot: discord.Bot):

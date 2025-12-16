@@ -7,7 +7,7 @@ Currently this is literally only the invite command.
 import discord
 
 # my modules
-from ..utils.logging_utils import timestamp_print as tsprint
+from src.utils.logging_utils import timestamp_print as tsprint
 
 # required for cogs API
 def setup(bot: discord.Bot):

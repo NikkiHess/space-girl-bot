@@ -11,10 +11,10 @@ import discord
 from discord.ext import commands
 
 # my modules
-from ..tts import driver as ttsd
-from ..db import driver as dbd # NOT DEAD BY DAYLIGHT
-from ..utils.logging_utils import timestamp_print as tsprint
-from ..views.views import ConfirmView, PageNavView
+from src.tts import driver as ttsd
+from src.db import driver as dbd # NOT DEAD BY DAYLIGHT
+from src.utils.logging_utils import timestamp_print as tsprint
+from src.views.views import ConfirmView, PageNavView
 
 # required for cogs API
 def setup(bot: discord.Bot):

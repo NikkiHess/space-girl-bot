@@ -14,8 +14,8 @@ import json
 import emoji
 
 # my modules
-from ..utils.logging_utils import timestamp_print as tsprint
-from ..tts.voices import TTSVibesVoice as TVV
+from src.utils.logging_utils import timestamp_print as tsprint
+from src.tts.voices import TTSVibesVoice as TVV
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
