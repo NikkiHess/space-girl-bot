@@ -1,3 +1,8 @@
+"""
+Handles all the per-user, per-guild, and global settings bot functionality.
+This currently includes the settings command and the pronunciation command.
+"""
+
 # built-in
 from itertools import islice
 
@@ -189,3 +194,7 @@ class SettingsCog(commands.Cog):
             await ctx.respond(f"✅ Your default voice has been set to **{voice}**! You can now use /tts without specifying a voice.")
         else:
             await ctx.respond(f"✅ Your default voice has been cleared. You must now specify a voice when using /tts.")
+
+    @discord.Cog.listener()
+    async def on_ready(self):
+        tsprint("Settings Cog is now ready!")

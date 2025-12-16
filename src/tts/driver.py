@@ -81,7 +81,10 @@ def adjust_pronunciation(text: str, voice: str) -> str:
             r">:\(": "angry face",
             r":\)": "smiley face",
             r":\(": "sad face",
-            r":\o": "sad face",
+            r":o": "shocked face",
+            r"D:": "big shocked face",
+            r":D": "big smile face",
+            r"<3": "heart",
             "regex": "regh ex"
         }
             

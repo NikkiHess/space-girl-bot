@@ -1,13 +1,11 @@
 """
-Contains the VC Cog for the Discord API
+Handles Discord VC behavior, including joining and leaving VC, queueing TTS (through TTSManager),
+and running the background playback loop (through TTSBackgroundTask). This is the glue that holds together all
+the components of text-to-speech and voice chat.
 """
 
 # built-in
-from collections import deque
-from typing import Optional, Dict, Deque
-import asyncio
-import platform
-import os
+from typing import Optional
 
 # Pycord
 import discord
@@ -30,8 +28,7 @@ def setup(bot: discord.Bot):
 
 class VCCog(commands.Cog):
     """
-    Handles:
-    1.) Commands: tts, join, leave
+    Manages all voice-related commands and the TTS background loop
     """
 
     def __init__(self, bot):
@@ -82,7 +79,7 @@ class VCCog(commands.Cog):
     )
     async def cmd_tts(self, ctx: discord.ApplicationContext, input: str, voice: str):
         """
-        Does TTS, currently only Marcus.
+        Does TTS, currently only through TTS Vibes (soon to include Moonbase Alpha, REPO)
         """
         # make sure vc and tts queue dicts have entries for this guild
         self.vc_state.init_guild(ctx.guild_id)
