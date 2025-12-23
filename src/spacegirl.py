@@ -24,9 +24,7 @@ intents.voice_states = True
 intents.members = True
 intents.guilds = True
 
-import sys
 tsprint("Starting Space Girl...")
-tsprint(sys.version)
 
 bot = discord.Bot(intents=intents)
 
@@ -36,8 +34,6 @@ for filename in os.listdir(os.path.join(os.path.dirname(__file__), "cogs")):
         mod = f".cogs.{filename[:-3]}"
         importlib.import_module(mod, package="src")
         bot.load_extension(mod, package="src")
-
-# BUG: If you try to make TTS that is too long the bot gets confused and thinks it can play it when TTS Vibes says no.
 
 # BOT EVENTS
 @bot.event

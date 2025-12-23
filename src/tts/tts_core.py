@@ -14,7 +14,8 @@ import platform
 import discord
 
 # my modules
-from ..tts import driver as ttsd
+from src.tts import driver as ttsd
+from src.tts.returncodes import TTSReturnCode as TRC
 from .voices import TTSVibesVoice as TVV
 from ..errors import *
 from ..utils.logging_utils import timestamp_print as tsprint
@@ -39,9 +40,9 @@ class TTSManager():
         if guild_id not in self.tts_queue_dict:
             self.tts_queue_dict[guild_id] = {voice: deque() for voice in ttsd.TTS_VOICES}
 
-    def download_and_queue(self, input: str, voice: TVV, guild_id: int) -> bool:
+    def download_and_queue(self, input: str, voice: TVV, guild_id: TRC) -> int:
         """
-        Wraps tts_drover.download_and_queue_tts_vibes
+        Wraps tts_driver.download_and_queue_tts_vibes
         
         :param input: the text to speak
         :type input: str
@@ -49,12 +50,12 @@ class TTSManager():
         :type voice: TVV
         :param guild_id: the guild ID to queue the TTS in
         :type guild_id: int
-        :return: whether the text was trimmed for being too long
-        :rtype: bool
+        :return: the return code from the function
+        :rtype: TRC
         """
-        queue_dict = self.tts_queue_dict[guild_id][voice.name]
+        queue_deque = self.tts_queue_dict[guild_id][voice.name]
 
-        return ttsd.download_and_queue_tts_vibes(input, voice, queue_dict)
+        return ttsd.download_and_queue_tts_vibes(input, voice, queue_deque)
     
 class TTSBackgroundTask():
     """

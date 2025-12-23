@@ -17,13 +17,14 @@ import emoji
 # my modules
 from src.utils.logging_utils import timestamp_print as tsprint
 from src.tts.voices import TTSVibesVoice as TVV
+from src.tts.returncodes import TTSReturnCode as TRC
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
-MAX_LEN = 300
+MAX_LEN = 300 # TTSVibes limits us here. TODO: dynamic length for different services?
+TTSVIBES_MAX_REPEAT = 4
 TTSVIBES_VOICES = [voice.replace("_", " ") for voice in TVV._member_names_]
-
 TTS_VOICES = TTSVIBES_VOICES + [] # you can add more :3
 
 EMOJI_DICT = Path(f"{os.getcwd()}/emoji.json") # read in emoji.json
@@ -63,7 +64,6 @@ def adjust_pronunciation(text: str, voice: str) -> str:
 
     # replaces each emoji with its name surrounded by colons and whitespace
     text = emoji.replace_emoji(text, replace=replace_match)
-
     
     for name in names:
         # sub with name + emojis if there's a plural group
@@ -166,34 +166,40 @@ def adjust_pronunciation(text: str, voice: str) -> str:
         
     return text
 
-def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_dict: dict) -> bool:
+def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_deque: deque) -> bool:
     """
     downloads a voice line from the TTS Vibes API and adds it to the TTS queue
 
-    :param input: the text to speak (max 300 chars)
+    :param input: the text to speak
     :type input: str
     :param voice: the TTS Vibes voice to use
     :type voice: TVV
-    :param tts_queue_dict: the tts queue (from dict) to add to
-    :type tts_queue_dict: dict
-    :return: whether the input got trimmed/was too long
-    :rtype: bool
+    :param tts_queue_deque: the tts deque (from dict) to add to
+    :type tts_queue_deque: deque
+    :return: the return code, to indicate whether valid or not and in what way
+    :rtype: TRC
     """
 
     tsprint(f"Getting {voice.name} TTS...")
 
-    was_too_long = False
-
-    # trim input if too long
-    if len(input) > MAX_LEN:
-        input = input[:MAX_LEN-1]
-        was_too_long = True
-        
     # strip illegal chars from input to put into filename
     filename = re.sub(r'[\\/*?:"<>,|]', "", input)
+
+    # make sure filename is not too long (factoring in .mp3)
+    if len(filename) > 251:
+        return TRC.TOO_LONG
     filepath = os.path.join("downloads", f"{filename}.mp3")
 
+    # make any necessary pronunciation changes/emoji translations prior to checking repeat chars
     input = adjust_pronunciation(input, voice.name)
+
+    # make sure final input length is not too long
+    if len(input) > MAX_LEN:
+        return TRC.TOO_LONG
+    
+    # if we have even a single instance of too many repeat chars, shut it down
+    if re.search("((\\S)\\2{" + str(TTSVIBES_MAX_REPEAT) + ",})", input):
+        return TRC.TOO_MANY_REPEAT_CHARS
 
     # request from the TTS Vibes API (subject to change)
     url = "https://ttsvibes.com/?/generate"
@@ -212,9 +218,17 @@ def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_dict: dict) -
     response = requests.post(url, headers=headers, data=data)
 
     response = response.json() # get response json
+
+    # sometimes even with my filters TTSVibes just doesn't like stuff
+    # tts vibes just doesn't like spammy stuff I guess...
     if response["type"] == "error":
-        tsprint(f"Could not get TTS from TTS Vibes. {response["error"]["message"]}")
-        return
+        error_msg = response["error"]["message"]
+        tsprint(f"Could not get TTS from TTS Vibes. {error_msg}")
+
+        if "supported for this language" in error_msg:
+            return TRC.LANGUAGE_UNSUPPORTED
+        
+        return TRC.GENERIC_TTSVIBES_ERROR
 
     response = response["data"] # get data (actual response payload)
 
@@ -232,6 +246,6 @@ def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_dict: dict) -
 
         tsprint(f"Saved TTS to \"{filepath}\"")
 
-    tts_queue_dict.append(filepath)
+    tts_queue_deque.append(filepath)
 
-    return was_too_long
+    return TRC.OKAY

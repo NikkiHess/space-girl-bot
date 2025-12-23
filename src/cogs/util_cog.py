@@ -28,7 +28,7 @@ class UtilCog(discord.Cog):
             color=0xED99A0  # cute pink color
         )
         embed.add_field(name="Invite Link", value=f"[Click here!]({self.invite_link})", inline=False)
-
+        
         try:
             # only send this message in guilds
             if ctx.guild:

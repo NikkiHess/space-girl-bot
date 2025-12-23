@@ -21,6 +21,7 @@ from src.errors import *
 from src.vc.vc_state import VCState
 from src.tts.tts_core import TTSManager, TTSBackgroundTask
 from src.tts import driver as ttsd
+from src.tts.returncodes import TTSReturnCode as TRC
 
 # required for cogs API
 def setup(bot: discord.Bot):
@@ -69,7 +70,7 @@ class VCCog(commands.Cog):
     @discord.option(
         "input", 
         type=str, 
-        description="The input to read (MAX 300 CHARS)"
+        description=f"The input to read (MAX {ttsd.MAX_LEN} CHARS)"
     )
     @discord.option( # OPTIONAL ARGUMENTS NEED TO BE AFTER NON-OPTIONAL
         "voice",
@@ -84,9 +85,6 @@ class VCCog(commands.Cog):
         # make sure vc and tts queue dicts have entries for this guild
         self.vc_state.init_guild(ctx.guild_id)
         self.tts_manager.init_guild(ctx.guild_id)
-
-        # silently acknowledge the command
-        await ctx.defer()
 
         # if the user isn't in a VC, it doesn't make sense to do TTS
         # TODO: evaluate this, server setting?
@@ -109,16 +107,31 @@ class VCCog(commands.Cog):
                 await ctx.respond("❌ You need to specify a voice or set a default with /settings voice")
                 return
 
+        return_code = TRC.NONE
         # download and queue the voice line
-        was_too_long = False # define this early so there's no chance it's undefined
         if voice in ttsd.TTS_VOICES:
+            # TODO: can this be updated to use the list in ttsd instead?
             voice_internal = voice.replace(" ", "_") # internal voice names are goofy, translate them pls
 
             # is this as TTSVibes voice?
             if voice_internal in TVV._member_names_:
-                # self.tts_manager.init_guild(ctx.guild_id)
-                was_too_long = self.tts_manager.download_and_queue(input, TVV[voice_internal], ctx.guild_id)
-            
+                return_code = self.tts_manager.download_and_queue(input, TVV[voice_internal], ctx.guild_id)
+        
+
+        # error return codes? make error known
+        if return_code == TRC.TOO_LONG:
+            await ctx.respond(f"❌ Input was too long. Max length is {ttsd.MAX_LEN} chars.\n Note that emojis take more space than they appear to.")
+        if return_code == TRC.TOO_MANY_REPEAT_CHARS:
+            await ctx.respond(f"❌ Input had too many repeat characters. Max repeat length is {ttsd.TTSVIBES_MAX_REPEAT} chars.")
+        if return_code == TRC.LANGUAGE_UNSUPPORTED:
+            await ctx.respond(f"❌ The TTS engine did not like some of the phonemes or characters in your input (unsupported language error)\n- If it's spammy, try breaking it up a little. The input might just have a single token that's a touch too long.\n- If it contains non-ASCII characters, remove those characters")
+        if return_code == TRC.GENERIC_TTSVIBES_ERROR:
+            await ctx.respond(f"❌ TTS Vibes didn't like that one. It tends to not like spammy stuff, try something less spammy I guess.")
+
+        # any error should cause an exit
+        if return_code != TRC.OKAY:
+            return
+
         tsprint(f"Queued TTS \"{input}\" in guild {ctx.guild_id}")
         
         # handle message intro with voice emoji and name
@@ -128,8 +141,7 @@ class VCCog(commands.Cog):
             message_intro = f"{app_emoji} {voice}"
 
         await ctx.followup.send(
-            content=f"{message_intro}: {input}\n" + 
-                    ("Input was trimmed because it was over 300 chars." if was_too_long else "")
+            content=f"{message_intro}: {input}\n"
         )
 
     @discord.slash_command(name="join", description="Joins the voice chat you're currently in.")
