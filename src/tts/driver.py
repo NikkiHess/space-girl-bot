@@ -42,10 +42,39 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     :rtype: str
     """
 
-    # replace emojis
-    for char in text:
-        if char in EMOJI_DICT and EMOJI_DICT.get(char) is not None:
-            text = text.replace(char, f"{EMOJI_DICT.get(char)} emoji")
+    # normalize variation selectors first
+    text = re.sub(r"[\uFE0F\uFE0E]", "", text)
+
+    # used to contain emoji names to replace
+    # important for pluralization
+    names = set()
+
+    # callback to replace emoji with their names, more reliable than regex on MANY levels
+    def replace_match(unicode_emoji: str, _: dict) -> str:
+        name = EMOJI_DICT.get(unicode_emoji) # match emoji to name
+        if not name or not name.strip():
+            return ""
+        
+        # add the name (if not there already) to check for plurality later
+        names.add(name)
+
+        # whitespace to ensure we don't have stuff like "man emojiwoman emoji"
+        return f" :{name}: "
+
+    # replaces each emoji with its name surrounded by colons and whitespace
+    text = emoji.replace_emoji(text, replace=replace_match)
+
+    
+    for name in names:
+        # sub with name + emojis if there's a plural group
+        pattern = rf"(?:(?::{re.escape(name)}:)\s*){{2,}}"
+        text = re.sub(pattern, f"{name} emojis ", text)
+
+        # sub with name + emoji if singular
+        text = text.replace(f":{name}:", f"{name} emoji ")
+
+    # max 1 space between words, and no whitespace on ends
+    text = re.sub(r"\s+", " ", text).strip()
 
     # TODO: handle Discord emojis
     # TODO: add this to database, make way to add global pronunciation via bot (NIKKI ONLY)
@@ -55,36 +84,87 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     # TTS vibes pronounces the same words wrongly across voices
     if voice in TTSVIBES_VOICES:
         LEGACY_PRONUNCIATION_DICTIONARY = {
-            "lol": "lawl",
-            "uwu": "ooh woo",
-            ":3": "colon three",
-            "minecraft": "mine craft",
-            "lmao": "LMAO",
-            "labubu": "luh booboo",
-            "bros": "bro's",
-            "pls": "please",
-            "brb": "b r b",
-            r">:\(": "angry face",
-            r":\)": "smiley face",
-            r":\(": "sad face",
-            r":o": "shocked face",
-            r"D:": "big shocked face",
-            r":D": "big smile face",
-            r"<3": "heart",
-            "regex": "regh ex"
+            "lol": {
+                "translation": "lawl",
+                "case_sensitive": False
+            },
+            "uwu": {
+                "translation": "ooh woo",
+                "case_sensitive": False
+            },
+            ":3": {
+                "translation": "colon three",
+                "case_sensitive": False
+            },
+            "minecraft": {
+                "translation": "mine craft",
+                "case_sensitive": False
+            },
+            "lmao": {
+                "translation": "LMAO",
+                "case_sensitive": False
+            },
+            "labubu": {
+                "translation": "luh booboo",
+                "case_sensitive": False
+            },
+            "bros": {
+                "translation": "bro's",
+                "case_sensitive": False
+            },
+            "pls": {
+                "translation": "please",
+                "case_sensitive": False
+            },
+            "brb": {
+                "translation": "b r b",
+                "case_sensitive": False
+            },
+            r">:\(": {
+                "translation": "angry face",
+                "case_sensitive": False
+            },
+            r":\)": {
+                "translation": "smiley face",
+                "case_sensitive": False
+            },
+            r":\(": {
+                "translation": "sad face",
+                "case_sensitive": False
+            },
+            r":o": {
+                "translation": "shocked face",
+                "case_sensitive": False
+            },
+            r"D:": {
+                "translation": "big shocked face",
+                "case_sensitive": True
+            },
+            r":D": {
+                "translation": "big smile face",
+                "case_sensitive": True
+            },
+            r"<3": {
+                "translation": "heart",
+                "case_sensitive": False
+            },
+            "regex": {
+                "translation": "regh ex",
+                "case_sensitive": False
+            }
         }
             
-        for trigger, replacement in LEGACY_PRONUNCIATION_DICTIONARY.items():
-            text = re.sub(trigger, replacement, text, flags=re.IGNORECASE)
+        # for each translation, apply to the text
+        # making sure to account for whether it's case sensitive
+        for trigger, data in LEGACY_PRONUNCIATION_DICTIONARY.items():
+            flags = re.IGNORECASE if not data["case_sensitive"] else 0
+            text = re.sub(trigger, data["translation"], text, flags=flags)
 
-
-        # if the whole input is no, add a period so voice doesn't say number
+        # if the whole input is "no", add a period so voice doesn't say "number"
         if text.lower() == "no":
             text = "no."
         
     return text
-
-print(adjust_pronunciation("👋 👋🏻 👋🏼 👋🏽 👋🏾 👋🏿", "Marcus"))
 
 def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_dict: dict) -> bool:
     """
