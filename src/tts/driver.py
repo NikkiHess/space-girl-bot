@@ -43,12 +43,8 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     :rtype: str
     """
 
-    # normalize variation selectors first
+    # remove variation selectors first
     text = re.sub(r"[\uFE0F\uFE0E]", "", text)
-
-    # used to contain emoji names to replace
-    # important for pluralization
-    names = set()
 
     # callback to replace emoji with their names, more reliable than regex on MANY levels
     def replace_match(unicode_emoji: str, _: dict) -> str:
@@ -56,22 +52,11 @@ def adjust_pronunciation(text: str, voice: str) -> str:
         if not name or not name.strip():
             return ""
         
-        # add the name (if not there already) to check for plurality later
-        names.add(name)
-
-        # whitespace to ensure we don't have stuff like "man emojiwoman emoji"
-        return f" :{name}: "
+        # whitespace to ensure we don't end up with strings like "footballred heart"
+        return f" {name} "
 
     # replaces each emoji with its name surrounded by colons and whitespace
     text = emoji.replace_emoji(text, replace=replace_match)
-    
-    for name in names:
-        # sub with name + emojis if there's a plural group
-        pattern = rf"(?:(?::{re.escape(name)}:)\s*){{2,}}"
-        text = re.sub(pattern, f"{name} emojis ", text)
-
-        # sub with name + emoji if singular
-        text = text.replace(f":{name}:", f"{name} emoji ")
 
     # max 1 space between words, and no whitespace on ends
     text = re.sub(r"\s+", " ", text).strip()

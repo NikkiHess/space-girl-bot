@@ -82,6 +82,9 @@ class VCCog(commands.Cog):
         """
         Does TTS, currently only through TTS Vibes (soon to include Moonbase Alpha, REPO)
         """
+        # silently acknowledge the command while we process
+        await ctx.defer()
+
         # make sure vc and tts queue dicts have entries for this guild
         self.vc_state.init_guild(ctx.guild_id)
         self.tts_manager.init_guild(ctx.guild_id)
