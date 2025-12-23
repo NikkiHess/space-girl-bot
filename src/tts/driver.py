@@ -9,6 +9,7 @@ from collections import deque
 import requests
 import base64
 import json
+from pathlib import Path
 
 # PyPI modules
 import emoji
@@ -25,27 +26,9 @@ TTSVIBES_VOICES = [voice.replace("_", " ") for voice in TVV._member_names_]
 
 TTS_VOICES = TTSVIBES_VOICES + [] # you can add more :3
 
-def handle_emojis(text: str) -> str:
-    """
-    Transform emojis into "more speakable" text
-    
-    :param text: The text (theoretically) containing emojis
-    :type text: str
-    :return: the "more speakable" string
-    :rtype: str
-    """
-    # convert Unicode emojis to text
-    text = emoji.demojize(text, delimiters=("", " emoji"))
-    text = re.sub(
-        r"face_with_([a-z0-9_]+)",
-        lambda match: match.group(1).replace("_", " "),
-        text,
-        flags=re.IGNORECASE
-    )
-
-    return text
-
-print(handle_emojis("😍"))
+EMOJI_DICT = Path(f"{os.getcwd()}/emoji.json") # read in emoji.json
+EMOJI_DICT = EMOJI_DICT.read_text() # read text from emoji.json
+EMOJI_DICT: dict = json.loads(EMOJI_DICT) # load into a dict
 
 def adjust_pronunciation(text: str, voice: str) -> str:
     """
@@ -59,7 +42,10 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     :rtype: str
     """
 
-    text = handle_emojis(text)
+    # replace emojis
+    for char in text:
+        if char in EMOJI_DICT and EMOJI_DICT.get(char) is not None:
+            text = text.replace(char, f"{EMOJI_DICT.get(char)} emoji")
 
     # TODO: handle Discord emojis
     # TODO: add this to database, make way to add global pronunciation via bot (NIKKI ONLY)
@@ -98,10 +84,11 @@ def adjust_pronunciation(text: str, voice: str) -> str:
         
     return text
 
+print(adjust_pronunciation("👋 👋🏻 👋🏼 👋🏽 👋🏾 👋🏿", "Marcus"))
+
 def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_dict: dict) -> bool:
     """
     downloads a voice line from the TTS Vibes API and adds it to the TTS queue
-
 
     :param input: the text to speak (max 300 chars)
     :type input: str

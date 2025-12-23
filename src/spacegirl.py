@@ -24,7 +24,9 @@ intents.voice_states = True
 intents.members = True
 intents.guilds = True
 
+import sys
 tsprint("Starting Space Girl...")
+tsprint(sys.version)
 
 bot = discord.Bot(intents=intents)
 
