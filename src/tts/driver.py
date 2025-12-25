@@ -43,6 +43,7 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     :rtype: str
     """
 
+    # ----- HANDLE UNICODE EMOJI -----
     # remove variation selectors first
     text = re.sub(r"[\uFE0F\uFE0E]", "", text)
 
@@ -57,6 +58,12 @@ def adjust_pronunciation(text: str, voice: str) -> str:
 
     # replaces each emoji with its name surrounded by colons and whitespace
     text = emoji.replace_emoji(text, replace=replace_match)
+    # --------------------------------
+
+    # ----- HANDLE DISCORD EMOJI -----
+    # discord_emoji = re.findall(r"")
+
+    # --------------------------------
 
     # max 1 space between words, and no whitespace on ends
     text = re.sub(r"\s+", " ", text).strip()
