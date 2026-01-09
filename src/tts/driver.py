@@ -28,7 +28,7 @@ TTSVIBES_VOICES = [voice.replace("_", " ") for voice in TVV._member_names_]
 TTS_VOICES = TTSVIBES_VOICES + [] # you can add more :3
 
 EMOJI_DICT = Path(f"{os.getcwd()}/emoji.json") # read in emoji.json
-EMOJI_DICT = EMOJI_DICT.read_text() # read text from emoji.json
+EMOJI_DICT = EMOJI_DICT.read_text(encoding="utf-8") # read text from emoji.json
 EMOJI_DICT: dict = json.loads(EMOJI_DICT) # load into a dict
 
 def adjust_pronunciation(text: str, voice: str) -> str:
