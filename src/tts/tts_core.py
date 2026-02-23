@@ -40,22 +40,22 @@ class TTSManager():
         if guild_id not in self.tts_queue_dict:
             self.tts_queue_dict[guild_id] = {voice: deque() for voice in ttsd.TTS_VOICES}
 
-    def download_and_queue(self, input: str, voice: TVV, guild_id: TRC) -> int:
+    def download_and_queue(self, input: str, voice: str, guild_id: TRC) -> int:
         """
         Wraps tts_driver.download_and_queue_tts_vibes
         
         :param input: the text to speak
         :type input: str
-        :param voice: the voice to use
-        :type voice: TVV
+        :param voice: the name of the voice to use
+        :type voice: str
         :param guild_id: the guild ID to queue the TTS in
         :type guild_id: int
         :return: the return code from the function
         :rtype: TRC
         """
-        queue_deque = self.tts_queue_dict[guild_id][voice.name.replace("_", " ")]
+        queue_deque = self.tts_queue_dict[guild_id][voice]
 
-        return ttsd.download_and_queue_tts_vibes(input, voice, queue_deque)
+        return ttsd.download_and_queue_tts_vibes(input, TVV[voice.replace(" ", "_")], queue_deque)
     
 class TTSBackgroundTask():
     """

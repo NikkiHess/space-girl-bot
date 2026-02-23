@@ -114,12 +114,9 @@ class VCCog(commands.Cog):
         return_code = TRC.NONE
         # download and queue the voice line
         if voice in ttsd.TTS_VOICES:
-            # TODO: can this be updated to use the list in ttsd instead?
-            voice_internal = voice.replace(" ", "_") # internal voice names are goofy, translate them pls
-
             # is this a TTSVibes voice?
             if voice in ttsd.TTSVIBES_VOICES:
-                return_code = self.tts_manager.download_and_queue(input, TVV[voice_internal], ctx.guild_id)
+                return_code = self.tts_manager.download_and_queue(input, voice, ctx.guild_id)
         
 
         # error return codes? make error known
