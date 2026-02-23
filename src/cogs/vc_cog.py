@@ -61,6 +61,7 @@ class VCCog(commands.Cog):
         self.vc_state.set_vc_state(guild_id, None)
         tsprint("Bot left VC successfully")
 
+    # TODO: make it possible to monitor a certain chat for messages and read those in the user's voice. make this togglable per-user.
     # COMMANDS
     @discord.slash_command(
         name="tts",
@@ -116,8 +117,8 @@ class VCCog(commands.Cog):
             # TODO: can this be updated to use the list in ttsd instead?
             voice_internal = voice.replace(" ", "_") # internal voice names are goofy, translate them pls
 
-            # is this as TTSVibes voice?
-            if voice_internal in TVV._member_names_:
+            # is this a TTSVibes voice?
+            if voice in ttsd.TTSVIBES_VOICES:
                 return_code = self.tts_manager.download_and_queue(input, TVV[voice_internal], ctx.guild_id)
         
 

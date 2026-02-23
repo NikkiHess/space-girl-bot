@@ -5,8 +5,6 @@ Associates all TTS Vibes voices with their API names
 from enum import Enum
 
 class TTSVibesVoice(Enum):
-    # FOR BUG WHERE NO SWEAR WORDS ALLOWED, DUPLICATE THE LAST LETTER
-
     # Normal
     Commentator = "tt-en_male_jomboy"
     Cupid = "tt-en_male_cupid"
@@ -30,4 +28,6 @@ class TTSVibesVoice(Enum):
     Stitch = "tt-en_us_stitch"
 
     # BUG: no swear words allowed. bypass.
-    NO_SWEARING_LIST = [Ghost_Host, Madam_Leota, Pirate, C3PO, Rocket, Stitch]
+    # FOR BUG WHERE NO SWEAR WORDS ALLOWED, DUPLICATE THE LAST LETTER
+    _NO_SWEARING_LIST = [Ghost_Host, Madam_Leota, Pirate, C3PO, Rocket, Stitch]
+

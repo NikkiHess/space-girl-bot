@@ -53,7 +53,7 @@ class TTSManager():
         :return: the return code from the function
         :rtype: TRC
         """
-        queue_deque = self.tts_queue_dict[guild_id][voice.name]
+        queue_deque = self.tts_queue_dict[guild_id][voice.name.replace("_", " ")]
 
         return ttsd.download_and_queue_tts_vibes(input, voice, queue_deque)
     

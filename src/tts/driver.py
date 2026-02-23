@@ -24,7 +24,8 @@ os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
 MAX_LEN = 300 # TTSVibes limits us here. TODO: dynamic length for different services?
 TTSVIBES_MAX_REPEAT = 4
-TTSVIBES_VOICES = [voice.replace("_", " ") for voice in TVV._member_names_]
+# exclude members that start with _ because they are hidden
+TTSVIBES_VOICES = [voice.replace("_", " ") for voice in TVV._member_names_ if not voice.startswith("_")]
 TTS_VOICES = TTSVIBES_VOICES + [] # you can add more :3
 
 EMOJI_DICT = Path(f"{os.getcwd()}/emoji.json") # read in emoji.json
@@ -158,6 +159,7 @@ def adjust_pronunciation(text: str, voice: str) -> str:
         
     return text
 
+# TODO: make it so TTS that is too long just sends multiple API requests.
 def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_deque: deque) -> bool:
     """
     downloads a voice line from the TTS Vibes API and adds it to the TTS queue
