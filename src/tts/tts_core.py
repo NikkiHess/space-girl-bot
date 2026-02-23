@@ -55,7 +55,7 @@ class TTSManager():
         """
         queue_deque = self.tts_queue_dict[guild_id][voice]
 
-        return ttsd.download_and_queue_tts_vibes(input, TVV[voice.replace(" ", "_")], queue_deque)
+        return ttsd.download_and_queue_tts_vibes(input, TVV[voice.replace(" ", "_")], queue_deque, guild_id)
     
 class TTSBackgroundTask():
     """

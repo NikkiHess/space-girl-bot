@@ -26,8 +26,3 @@ class TTSVibesVoice(Enum):
     Grinch = "tt-en_male_grinch"
     Rocket = "tt-en_us_rocket"
     Stitch = "tt-en_us_stitch"
-
-    # BUG: no swear words allowed. bypass.
-    # FOR BUG WHERE NO SWEAR WORDS ALLOWED, DUPLICATE THE LAST LETTER
-    _NO_SWEARING_LIST = [Ghost_Host, Madam_Leota, Pirate, C3PO, Rocket, Stitch]
-

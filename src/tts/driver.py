@@ -18,6 +18,7 @@ import emoji
 from src.utils.logging_utils import timestamp_print as tsprint
 from src.tts.voices import TTSVibesVoice as TVV
 from src.tts.returncodes import TTSReturnCode as TRC
+from src.db import driver as dbd
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
@@ -32,16 +33,86 @@ EMOJI_DICT = Path(f"{os.getcwd()}/emoji.json") # read in emoji.json
 EMOJI_DICT = EMOJI_DICT.read_text(encoding="utf-8") # read text from emoji.json
 EMOJI_DICT: dict = json.loads(EMOJI_DICT) # load into a dict
 
-def adjust_pronunciation(text: str, voice: str) -> str:
+LEGACY_PRONUNCIATION_DICTIONARY = {
+    "lol": {
+        "translation": "lawl",
+        "case_sensitive": False
+    },
+    "uwu": {
+        "translation": "ooh woo",
+        "case_sensitive": False
+    },
+    ":3": {
+        "translation": "colon three",
+        "case_sensitive": False
+    },
+    "minecraft": {
+        "translation": "mine craft",
+        "case_sensitive": False
+    },
+    "lmao": {
+        "translation": "LMAO",
+        "case_sensitive": False
+    },
+    "labubu": {
+        "translation": "luh booboo",
+        "case_sensitive": False
+    },
+    "bros": {
+        "translation": "bro's",
+        "case_sensitive": False
+    },
+    "pls": {
+        "translation": "please",
+        "case_sensitive": False
+    },
+    "brb": {
+        "translation": "b r b",
+        "case_sensitive": False
+    },
+    r">:\(": {
+        "translation": "angry face",
+        "case_sensitive": False
+    },
+    r":\)": {
+        "translation": "smiley face",
+        "case_sensitive": False
+    },
+    r":\(": {
+        "translation": "sad face",
+        "case_sensitive": False
+    },
+    r":o": {
+        "translation": "shocked face",
+        "case_sensitive": False
+    },
+    r"D:": {
+        "translation": "big shocked face",
+        "case_sensitive": True
+    },
+    r":D": {
+        "translation": "big smile face",
+        "case_sensitive": True
+    },
+    r"<3": {
+        "translation": "heart",
+        "case_sensitive": False
+    },
+    "regex": {
+        "translation": "regh ex",
+        "case_sensitive": False
+    }
+}
+
+def adjust_pronunciation(text: str, voice: str, guild_id: int) -> str:
     """
     Makes various adjustments to input text to make tts sound and function better
 
-    :param text: the text to adjust
-    :type text: str
-    :param voice: the voice to adjust pronunciation for
-    :type voice: str
-    :return: the adjusted input
-    :rtype: str
+    :param str text: the text to adjust
+    :param str voice: the name of the voice to adjust pronunciation for
+    :param int guild_id: the Discord ID for the guild we're executing in
+    
+    :return str: the adjusted input
     """
 
     # ----- HANDLE UNICODE EMOJI -----
@@ -74,79 +145,20 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     # TODO: handle "wa" -> "wah", but not when it would be washington (after a comma)
     # TODO: add filtering for "hahaha" -> "ha ha ha", applies to any number of ha's
     
+    # - HANDLE CUSTOM PRONUNCIATIONS -
+    voice_pronunciation_dict = dbd.list_pronunciations(guild_id, voice) | dbd.list_pronunciations(guild_id, "All Voices")
+    global_pronunciation_dict = dbd.list_pronunciations(-1, voice) | dbd.list_pronunciations(-1, "All Voices")
+
+    for original, pronunciation in voice_pronunciation_dict.items():
+        text = text.replace(original, pronunciation)
+
+    for original, pronunciation in global_pronunciation_dict.items():
+        text = text.replace(original, pronunciation)
+    # --------------------------------
+
+
     # TTS vibes pronounces the same words wrongly across voices
     if voice in TTSVIBES_VOICES:
-        LEGACY_PRONUNCIATION_DICTIONARY = {
-            "lol": {
-                "translation": "lawl",
-                "case_sensitive": False
-            },
-            "uwu": {
-                "translation": "ooh woo",
-                "case_sensitive": False
-            },
-            ":3": {
-                "translation": "colon three",
-                "case_sensitive": False
-            },
-            "minecraft": {
-                "translation": "mine craft",
-                "case_sensitive": False
-            },
-            "lmao": {
-                "translation": "LMAO",
-                "case_sensitive": False
-            },
-            "labubu": {
-                "translation": "luh booboo",
-                "case_sensitive": False
-            },
-            "bros": {
-                "translation": "bro's",
-                "case_sensitive": False
-            },
-            "pls": {
-                "translation": "please",
-                "case_sensitive": False
-            },
-            "brb": {
-                "translation": "b r b",
-                "case_sensitive": False
-            },
-            r">:\(": {
-                "translation": "angry face",
-                "case_sensitive": False
-            },
-            r":\)": {
-                "translation": "smiley face",
-                "case_sensitive": False
-            },
-            r":\(": {
-                "translation": "sad face",
-                "case_sensitive": False
-            },
-            r":o": {
-                "translation": "shocked face",
-                "case_sensitive": False
-            },
-            r"D:": {
-                "translation": "big shocked face",
-                "case_sensitive": True
-            },
-            r":D": {
-                "translation": "big smile face",
-                "case_sensitive": True
-            },
-            r"<3": {
-                "translation": "heart",
-                "case_sensitive": False
-            },
-            "regex": {
-                "translation": "regh ex",
-                "case_sensitive": False
-            }
-        }
-            
         # for each translation, apply to the text
         # making sure to account for whether it's case sensitive
         for trigger, data in LEGACY_PRONUNCIATION_DICTIONARY.items():
@@ -160,18 +172,15 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     return text
 
 # TODO: make it so TTS that is too long just sends multiple API requests.
-def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_deque: deque) -> bool:
+def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_deque: deque, guild_id: int) -> bool:
     """
     downloads a voice line from the TTS Vibes API and adds it to the TTS queue
 
-    :param input: the text to speak
-    :type input: str
-    :param voice: the TTS Vibes voice to use
-    :type voice: TVV
-    :param tts_queue_deque: the tts deque (from dict) to add to
-    :type tts_queue_deque: deque
-    :return: the return code, to indicate whether valid or not and in what way
-    :rtype: TRC
+    :param str input: the text to speak
+    :param TVV voice: the TTS Vibes voice to use
+    :param deque tts_queue_deque: the tts deque (from dict) to add to
+
+    :return TRC: the return code, to indicate whether valid or not and in what way
     """
 
     tsprint(f"Getting {voice.name} TTS...")
@@ -185,7 +194,7 @@ def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_deque: deque)
     filepath = os.path.join("downloads", f"{filename}.mp3")
 
     # make any necessary pronunciation changes/emoji translations prior to checking repeat chars
-    input = adjust_pronunciation(input, voice.name)
+    input = adjust_pronunciation(input, voice.name, guild_id)
 
     # make sure final input length is not too long
     if len(input) > MAX_LEN:

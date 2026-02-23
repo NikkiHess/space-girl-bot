@@ -5,6 +5,8 @@ This currently includes the settings command and the pronunciation command.
 
 # built-in
 from itertools import islice
+import json
+import os
 
 # PyPI
 import discord
@@ -16,13 +18,17 @@ from src.db import driver as dbd # NOT DEAD BY DAYLIGHT
 from src.utils.logging_utils import timestamp_print as tsprint
 from src.views.views import ConfirmView, PageNavView
 
+# load in admin IDs for admin settings
+with open(os.path.join(os.getcwd(), "admins.json")) as f:
+    ADMIN_IDS = set(json.load(f)["admins"])
+
 # required for cogs API
 def setup(bot: discord.Bot):
     bot.add_cog(SettingsCog(bot))
 
 class SettingsCog(commands.Cog):
-    pronunciation = discord.SlashCommandGroup("pronunciation", "Modify pronunciations on a per-server basis")
-    settings = discord.SlashCommandGroup("settings", "Modify your settings (global)")
+    pronunciation = discord.SlashCommandGroup("pronunciation", "Modify pronunciations (per-server)")
+    settings = discord.SlashCommandGroup("settings", "Modify your user settings (global)")
 
     def __init__(self, bot: discord.Bot):
         self.bot = bot
@@ -31,17 +37,33 @@ class SettingsCog(commands.Cog):
     @discord.option(
         "voice",
         description="Which voice to edit",
-        choices=ttsd.TTS_VOICES
+        choices=["All Voices"] + ttsd.TTS_VOICES
     )
     @discord.option("text", description="The text to update pronounciation for")
     @discord.option("pronunciation", description="How to pronounce the text")
-    async def add_pronunciation(self, ctx: discord.ApplicationContext, voice: str, text: str, pronunciation: str):
+    @discord.option(name="global", description="(BOT ADMIN ONLY) update the bot's global pronunciations", value=False)
+    async def add_pronunciation(self, ctx: discord.ApplicationContext, voice: str, text: str, pronunciation: str, admin_global: bool = False):
         """
         Adds a pronunciation to the Discord server within the database
+
+        :param discord.ApplicationContext ctx: the context in which to execute
+        :param str voice: the name of the voice to update
+        :param str text: the text to adjust pronunciation for
+        :param str pronunciation: the pronunciation for that text
+        :param bool admin_global: whether this is an adjustment for the entire bot, bot admins only
         """
         await ctx.respond("🔄 Processing...")
 
-        existing_pronunciation = dbd.get_pronunciation(ctx.guild_id, voice, text)
+        # return early if unauthorized access to admin_global
+        if admin_global and ctx.author.id not in ADMIN_IDS:
+            await ctx.edit(content="🚫 You must be a bot admin to edit global pronunciations", embed=None, view=None)
+            return
+        
+        guild_id = ctx.guild_id if not admin_global else -1
+        guild_name = guild_name if not admin_global else "The Whole Bot™"
+
+        # admin_global is guild -1
+        existing_pronunciation = dbd.get_pronunciation(guild_id, voice, text)
         if existing_pronunciation:
             embed = discord.Embed(
                 title = "Pronunciation Override Confirmation",
@@ -63,13 +85,13 @@ class SettingsCog(commands.Cog):
                 await ctx.edit(content="❌ Operation cancelled.", embed=None, view=None)
                 return
         else:
-            tsprint(f"Adding pronunciation \"{text}\" -> \"{pronunciation}\" to guild {ctx.guild_id}")
+            tsprint(f"Adding pronunciation \"{text}\" -> \"{pronunciation}\" to guild {guild_id}")
         
-        dbd.add_pronunciation(ctx.guild_id, voice, text, pronunciation)
+        dbd.add_pronunciation(guild_id, voice, text, pronunciation)
 
         embed = discord.Embed(
             title = "Pronunciation Successfully Added!",
-            description = f"Your pronunciation has been added to **{ctx.guild.name}**!",
+            description = f"Your pronunciation has been added to **{guild_name}**!",
             color = discord.Color.brand_green()
         )
         embed.add_field(name = "Text", value = text)
@@ -81,44 +103,68 @@ class SettingsCog(commands.Cog):
     @discord.option(
         "voice",
         description="Which voice to edit",
-        choices=ttsd.TTS_VOICES
+        choices=["All Voices"] + ttsd.TTS_VOICES
     )
     @discord.option("text", description="The text to remove the pronunciation for")
-    async def remove_pronunciation(self, ctx: discord.ApplicationContext, voice: str, text: str):
+    @discord.option(name="global", description="(BOT ADMIN ONLY) update the bot's global pronunciations", value=False)
+    async def remove_pronunciation(self, ctx: discord.ApplicationContext, voice: str, text: str, admin_global: bool = False):
         """
         Removes a pronunciation from the Discord server within the database
+
+        :param discord.ApplicationContext ctx: the context in which to execute
+        :param str voice: the name of the voice to update
+        :param str text: the text to remove pronunciation for
+        :param bool admin_global: whether this is an adjustment for the entire bot, bot admins only
         """
         await ctx.respond("🔄 Processing...")
 
-        existing_pronunciation = dbd.get_pronunciation(ctx.guild_id, voice, text)
+        # return early if unauthorized access to admin_global
+        if admin_global and ctx.author.id not in ADMIN_IDS:
+            await ctx.edit(content="🚫 You must be a bot admin to edit global pronunciations", embed=None, view=None)
+            return
+
+        guild_id = ctx.guild_id if not admin_global else -1
+        guild_name = ctx.guild.name if not admin_global else "The Whole Bot™"
+
+        existing_pronunciation = dbd.get_pronunciation(guild_id, voice, text)
         if existing_pronunciation:
-            tsprint(f"Removed pronunciation \"{text}\" -> \"{existing_pronunciation}\" from guild {ctx.guild_id}")
-            dbd.remove_pronunciation(ctx.guild_id, voice, text)
+            tsprint(f"Removed pronunciation \"{text}\" -> \"{existing_pronunciation}\" from guild {guild_id}")
+            dbd.remove_pronunciation(guild_id, voice, text)
         
             embed = discord.Embed(
                 title = "Pronunciation Successfully Removed!",
-                description = f"Your pronunciation has been removed from **{ctx.guild.name}**!",
+                description = f"Your pronunciation has been removed from **{guild_name}**!",
                 color = discord.Color.brand_red()
             )
             embed.add_field(name = "Text", value = text)
 
             await ctx.edit(content=None, embed=embed, view=None)
         else:
-            tsprint(f"Pronunciation for \"{text}\" not found in guild {ctx.guild_id}")
-            await ctx.edit(content=f"❌ Pronunciation for \"{text}\" not found in **{ctx.guild.name}**")
+            tsprint(f"Pronunciation for \"{text}\" not found in guild {guild_id}")
+            await ctx.edit(content=f"❌ Pronunciation for \"{text}\" not found in **{guild_name}**")
         
     @pronunciation.command(name="list", description="List all pronunciations for a voice in this server")
-    # name="list" doesn't match function name here because otherwise we have naming conflicts (with built-in list function)
     @discord.option(
         "voice",
         description="Which voice to check pronunciations for",
-        choices=ttsd.TTS_VOICES
+        choices=["All Voices"] + ttsd.TTS_VOICES
     )
-    async def list_pronunciations(self, ctx: discord.ApplicationContext, voice: str):
+    @discord.option(name="global", description="(BOT ADMIN ONLY) list the bot's global pronunciations", value=False)
+    async def list_pronunciations(self, ctx: discord.ApplicationContext, voice: str, admin_global: bool = False):
         """
         Lists all pronunciations for a specified voice within the Discord server
         """
-        pronunciations = dbd.list_pronunciations(ctx.guild_id, voice)
+        await ctx.respond("🔄 Processing...")
+
+        # return early if unauthorized access to admin_global
+        if admin_global and ctx.author.id not in ADMIN_IDS:
+            await ctx.edit(content="🚫 You must be a bot admin to list global pronunciations", embed=None, view=None)
+            return
+
+        guild_id = ctx.guild_id if not admin_global else -1
+        guild_name = ctx.guild.name if not admin_global else "The Whole Bot™"
+
+        pronunciations = dbd.list_pronunciations(guild_id, voice)
         
         # TODO: fix this, shows up weirdly on mobile
 
@@ -132,7 +178,7 @@ class SettingsCog(commands.Cog):
             builds the embed based on page information
             """
             embed = discord.Embed(
-                title=f"Pronunciation Dictionary for **{voice}** in **{ctx.guild.name}**",
+                title=f"Pronunciation Dictionary for **{voice}** in **{guild_name}**",
                 color=0xED99A0  # cute pink color
             )
 
@@ -158,9 +204,9 @@ class SettingsCog(commands.Cog):
             embed = build_embed(current_page, num_pages)
 
             page_nav_view = PageNavView(num_pages, build_embed)
-            await ctx.respond(embed=embed, view=page_nav_view)
+            await ctx.edit(embed=embed, view=page_nav_view)
         else:
-            await ctx.respond(f"❌ No pronunciations found for **{voice}** in **{ctx.guild.name}**!")
+            await ctx.edit(content=f"❌ No pronunciations found for **{voice}** in **{guild_name}**!", embed=None, view=None)
 
     @settings.command(name="voice", description="Get or set your default voice")
     @discord.option(

@@ -56,11 +56,9 @@ def init_server(guild_id: int) -> int:
     """
     Initializes the server into the table if it doesn't already exist.
 
-    ## Args:
-    - `guild_id` (int): the id of the guild/server to insert
+    :param int guild_id: the id of the guild/server to insert
 
-    ## Returns:
-    - the database's internal ID for the server
+    :return int: the database's internal ID for the server
     """
 
     with get_conn() as connection:
@@ -74,11 +72,9 @@ def init_voice(voice_name: str) -> int | None:
     """
     Initializes the voice into the table if it doesn't already exist.
 
-    ## Args:
-    - `voice_name` (int): the name of the voice to insert
-
-    ## Returns:
-    - the database's internal ID for the voice
+    :param str voice_name: the name of the voice to insert into the table
+    
+    :return int: the database's internal ID for the new voice
     """
 
     with get_conn() as connection:
@@ -94,11 +90,9 @@ def init_user_settings(user_id: int) -> int:
     """
     Initializes the user (id) into user_settings
 
-    ## Args:
-    - `user_id` (int): the Discord user id to insert
+    :param int user_id: the Discord user id to insert into the table
 
-    ## Returns:
-    - the database's internal ID for the user (settings)
+    :return int: the database's internal ID for the user('s settings)
     """
 
     with get_conn() as connection:
@@ -112,11 +106,10 @@ def add_pronunciation(guild_id: int, voice_name: str, text: str, pronunciation: 
     """
     Adds a pronunciation translation to the server/voice.
 
-    ## Args:
-    - `guild_id` (int): the guild ID to insert the translation into
-    - `voice_name` (str): the voice name to insert the translation into
-    - `text` (str): the text to translate
-    - `pronunciation` (str): the pronunciation to translate to
+    :param int guild_id: the guild ID to insert the translation into, -1 will modify the bot's global dictionary
+    :param str voice_name: the voice name to insert the translation into, "All Voices" will modify the global voice dictionary
+    :param str text: the text to pronounce differently
+    :param str pronunciation: the pronunciation from that text
     """
 
     server_id = init_server(guild_id)
@@ -131,23 +124,21 @@ def add_pronunciation(guild_id: int, voice_name: str, text: str, pronunciation: 
                     """, (server_id, voice_id, text, pronunciation))
         connection.commit()
 
-def get_pronunciation(guild_id: int, voice_name: str, text: str) -> str:
+def get_pronunciation(guild_id: int, voice_name: str, text: str) -> str | None:
     """
-    Retrieves the translation for the text - used by a voice within a server.
+    Retrieves the translation for the text - used by a voice.
 
-    ## Args:
-    - `guild_id` (int): the guild ID to get the translation from
-    - `voice_name` (str): the voice name to get the translation from
-    - `text` (str): the text to retrieve the translation for
+    :param int guild_id: the guild ID to get the translation from, -1 will check the bot's global dictionary
+    :param str voice_name: the voice name to get the pronunciation from, "All Voices" will check global voice dictionary
+    :param str text: the text to retrieve the pronunciation for
 
-    ## Returns:
-    - result[0] if result else None
+    :returns str | None: the translation if it exists, otherwise None
     """
 
     with get_conn() as connection:
         cursor = connection.cursor()
             
-        cursor.execute("""
+        cursor.execute(f"""
                         SELECT translation.pronunciation
                         FROM translations translation
                         JOIN servers server ON translation.server_id = server.id
@@ -161,13 +152,11 @@ def remove_pronunciation(guild_id: int, voice_name: str, text: str) -> bool:
     """
     Removes a pronunciation translation from the server/voice.
 
-    ## Args:
-    - `guild_id` (int): the guild ID to remove the translation from
-    - `voice_name` (str): the voice name to remove the translation from
-    - `text` (str): the text whose translation should be removed
+    :param int guild_id: the guild ID to remove the translation from, -1 will modify the bot's global dictionary
+    :param str voice_name: the voice name to remove the translation from, "All Voices" will modify global voice dictionary
+    :param str text the text whose pronunciation should be removed
 
-    ## Returns:
-    - True if a translation was removed, False if none existed
+    :return bool: True if a pronunciation translation was removed, False if none existed to begin with
     """
 
     with get_conn() as connection:
@@ -193,12 +182,10 @@ def list_pronunciations(guild_id: int, voice_name: str) -> dict[str, str]:
     """
     Removes a pronunciation translation from the server/voice.
 
-    ## Args:
-    - `guild_id` (int): the guild ID to remove the translation from
-    - `voice_name` (str): the voice name to list pronunciations for
+    :param int guild_id: the guild ID to remove the translation from, -1 will modify the bot's global dictionary
+    :param str voice_name: the voice name to list pronunciations for, "All Voices" will modify the global voice dictionary
 
-    ## Returns:
-    - `dictionary` (dict[str, str]): the pronunciations found in the db
+    :return dict[str, str]: the pronunciations found in the database
     """
 
     # get the server
@@ -242,9 +229,8 @@ def set_user_voice(user_id: int, voice_name: str) -> None:
     """
     Sets a user's default voice to the specified voice name
 
-    ## Args:
-    - `user_id` (int): the Discord user ID to set the voice for
-    - `voice_name` (str): the (external, no underscores) name of the voice
+    :param int user_id: the Discord user ID to set the voice for
+    :param str voice_name: the (whitespace-included) name of this voice
     """
 
     voice_id = init_voice(voice_name)
@@ -264,11 +250,9 @@ def get_user_voice(user_id: int) -> str | None:
     """
     Gets a user's default voice
 
-    ## Args:
-    - `user_id` (int): the Discord user ID to get the default voice for
+    :param int user_id: the Discord user ID to get the voice for
 
-    ## Returns:
-    - `voice_name` (str | None): the name of the user's default voice (could be nothing)
+    :return str | None: the name of the user's default voice, None if not set
     """
     
     with get_conn() as connection:
