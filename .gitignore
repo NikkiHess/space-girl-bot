@@ -1,9 +1,8 @@
 # Custom
-depend/*
-database/*
+database
 admins.json
 *.zip
-config/discord.json
+config/*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
