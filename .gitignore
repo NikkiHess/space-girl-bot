@@ -1,5 +1,7 @@
 # Custom
 depend/*
+database/*
+admins.json
 *.zip
 config/discord.json
 

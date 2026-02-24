@@ -1,4 +1,13 @@
+"""
+Handles all utility functionality for the bot.
+Currently this is literally only the invite command.
+"""
+
+# PyPi
 import discord
+
+# my modules
+from src.utils.logging_utils import timestamp_print as tsprint
 
 # required for cogs API
 def setup(bot: discord.Bot):
@@ -19,7 +28,7 @@ class UtilCog(discord.Cog):
             color=0xED99A0  # cute pink color
         )
         embed.add_field(name="Invite Link", value=f"[Click here!]({self.invite_link})", inline=False)
-
+        
         try:
             # only send this message in guilds
             if ctx.guild:
@@ -29,3 +38,7 @@ class UtilCog(discord.Cog):
                 await ctx.respond(embed=embed)
         except discord.Forbidden:
             await ctx.respond("⚠️ I couldn't DM you! Please check your privacy settings.")
+
+    @discord.Cog.listener()
+    async def on_ready(self):
+        tsprint("Util Cog is now ready!")

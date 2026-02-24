@@ -10,7 +10,7 @@ from typing import Dict, Optional
 import discord
 
 # my modules
-from ..utils.logging_utils import timestamp_print as tsprint
+from src.utils.logging_utils import timestamp_print as tsprint
 
 class VCState():
     "Manages the bot's voice channel state"

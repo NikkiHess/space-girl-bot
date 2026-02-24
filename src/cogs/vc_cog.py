@@ -1,28 +1,27 @@
 """
-Contains the VC Cog for the Discord API
+Handles Discord VC behavior, including joining and leaving VC, queueing TTS (through TTSManager),
+and running the background playback loop (through TTSBackgroundTask). This is the glue that holds together all
+the components of text-to-speech and voice chat.
 """
 
 # built-in
-from collections import deque
-from typing import Optional, Dict, Deque
-import asyncio
-import platform
-import os
+from typing import Optional
 
 # Pycord
 import discord
 from discord.ext import commands
 
 # my modules
-from ..db import driver as dbd
-from ..tts import driver as ttsd
-from ..tts.voices import TTSVibesVoice as TVV
-from ..utils.logging_utils import timestamp_print as tsprint
-from ..utils.discord_utils import get_random_app_emoji
-from ..errors import *
-from ..vc.vc_state import VCState
-from ..tts.tts_core import TTSManager, TTSBackgroundTask
-from ..tts import driver as ttsd
+from src.db import driver as dbd
+from src.tts import driver as ttsd
+from src.tts.voices import TTSVibesVoice as TVV
+from src.utils.logging_utils import timestamp_print as tsprint
+from src.utils.discord_utils import get_random_app_emoji
+from src.errors import *
+from src.vc.vc_state import VCState
+from src.tts.tts_core import TTSManager, TTSBackgroundTask
+from src.tts import driver as ttsd
+from src.tts.returncodes import TTSReturnCode as TRC
 
 # required for cogs API
 def setup(bot: discord.Bot):
@@ -30,8 +29,7 @@ def setup(bot: discord.Bot):
 
 class VCCog(commands.Cog):
     """
-    Handles:
-    1.) Commands: tts, join, leave
+    Manages all voice-related commands and the TTS background loop
     """
 
     def __init__(self, bot):
@@ -63,6 +61,7 @@ class VCCog(commands.Cog):
         self.vc_state.set_vc_state(guild_id, None)
         tsprint("Bot left VC successfully")
 
+    # TODO: make it possible to monitor a certain chat for messages and read those in the user's voice. make this togglable per-user.
     # COMMANDS
     @discord.slash_command(
         name="tts",
@@ -72,7 +71,7 @@ class VCCog(commands.Cog):
     @discord.option(
         "input", 
         type=str, 
-        description="The input to read (MAX 300 CHARS)"
+        description=f"The input to read (MAX {ttsd.MAX_LEN} CHARS)"
     )
     @discord.option( # OPTIONAL ARGUMENTS NEED TO BE AFTER NON-OPTIONAL
         "voice",
@@ -82,14 +81,14 @@ class VCCog(commands.Cog):
     )
     async def cmd_tts(self, ctx: discord.ApplicationContext, input: str, voice: str):
         """
-        Does TTS, currently only Marcus.
+        Does TTS, currently only through TTS Vibes (soon to include Moonbase Alpha, REPO)
         """
+        # silently acknowledge the command while we process
+        await ctx.defer()
+
         # make sure vc and tts queue dicts have entries for this guild
         self.vc_state.init_guild(ctx.guild_id)
         self.tts_manager.init_guild(ctx.guild_id)
-
-        # silently acknowledge the command
-        await ctx.defer()
 
         # if the user isn't in a VC, it doesn't make sense to do TTS
         # TODO: evaluate this, server setting?
@@ -112,16 +111,28 @@ class VCCog(commands.Cog):
                 await ctx.respond("❌ You need to specify a voice or set a default with /settings voice")
                 return
 
+        return_code = TRC.NONE
         # download and queue the voice line
-        was_too_long = False # define this early so there's no chance it's undefined
         if voice in ttsd.TTS_VOICES:
-            voice_internal = voice.replace(" ", "_") # internal voice names are goofy, translate them pls
+            # is this a TTSVibes voice?
+            if voice in ttsd.TTSVIBES_VOICES:
+                return_code = self.tts_manager.download_and_queue(input, voice, ctx.guild_id)
+        
 
-            # is this as TTSVibes voice?
-            if voice_internal in TVV._member_names_:
-                # self.tts_manager.init_guild(ctx.guild_id)
-                was_too_long = self.tts_manager.download_and_queue(input, TVV[voice_internal], ctx.guild_id)
-            
+        # error return codes? make error known
+        if return_code == TRC.TOO_LONG:
+            await ctx.respond(f"❌ Input was too long. Max length is {ttsd.MAX_LEN} chars.\n Note that emojis take more space than they appear to.")
+        if return_code == TRC.TOO_MANY_REPEAT_CHARS:
+            await ctx.respond(f"❌ Input had too many repeat characters. Max repeat length is {ttsd.TTSVIBES_MAX_REPEAT} chars.")
+        if return_code == TRC.LANGUAGE_UNSUPPORTED:
+            await ctx.respond(f"❌ The TTS engine did not like some of the phonemes or characters in your input (unsupported language error)\n- If it's spammy, try breaking it up a little. The input might just have a single token that's a touch too long.\n- If it contains non-ASCII characters, remove those characters")
+        if return_code == TRC.GENERIC_TTSVIBES_ERROR:
+            await ctx.respond(f"❌ TTS Vibes didn't like that one. It tends to not like spammy stuff, try something less spammy I guess.")
+
+        # any error should cause an exit
+        if return_code != TRC.OKAY:
+            return
+
         tsprint(f"Queued TTS \"{input}\" in guild {ctx.guild_id}")
         
         # handle message intro with voice emoji and name
@@ -131,8 +142,7 @@ class VCCog(commands.Cog):
             message_intro = f"{app_emoji} {voice}"
 
         await ctx.followup.send(
-            content=f"{message_intro}: {input}\n" + 
-                    ("Input was trimmed because it was over 300 chars." if was_too_long else "")
+            content=f"{message_intro}: {input}\n"
         )
 
     @discord.slash_command(name="join", description="Joins the voice chat you're currently in.")

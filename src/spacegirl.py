@@ -13,10 +13,10 @@ import importlib
 import discord # pycord
 
 # my modules
-from .utils.logging_utils import timestamp_print as tsprint
-from .errors import *
-from .db import driver as dbd # NOT DEAD BY DAYLIGHT
-from .views.views import *
+from src.utils.logging_utils import timestamp_print as tsprint
+from src.errors import *
+from src.db import driver as dbd # NOT DEAD BY DAYLIGHT
+from src.views.views import *
 
 # get intents
 intents = discord.Intents.default()
@@ -24,16 +24,16 @@ intents.voice_states = True
 intents.members = True
 intents.guilds = True
 
+tsprint("Starting Space Girl...")
+
 bot = discord.Bot(intents=intents)
 
-# load cogs
+tsprint("Loading cogs...")
 for filename in os.listdir(os.path.join(os.path.dirname(__file__), "cogs")):
     if filename.endswith(".py") and filename != "__init__.py":
         mod = f".cogs.{filename[:-3]}"
         importlib.import_module(mod, package="src")
         bot.load_extension(mod, package="src")
-
-# BUG: If you try to make TTS that is too long the bot gets confused and thinks it can play it when TTS Vibes says no.
 
 # BOT EVENTS
 @bot.event
@@ -79,11 +79,6 @@ async def on_command_error(ctx: discord.ApplicationContext, error):
     else:
         # fallback logging
         print(f"⚠️ Something went wrong!\n{error}")
-
-
-# SLASH COMMANDS
-
-
 
 if __name__ == "__main__":
     # load in our token
