@@ -108,7 +108,7 @@ class VCCog(commands.Cog):
             if db_user_voice:
                 voice = db_user_voice
             else:
-                await ctx.respond("❌ You need to specify a voice or set a default with /settings voice")
+                await ctx.respond("❌ You need to specify a voice or set a default with /settings user voice")
                 return
 
         return_code = TRC.NONE
@@ -141,7 +141,7 @@ class VCCog(commands.Cog):
         if app_emoji:
             message_intro = f"{app_emoji} {voice}"
 
-        await ctx.followup.send(
+        await ctx.send_followup(
             content=f"{message_intro}: {input}\n"
         )
 

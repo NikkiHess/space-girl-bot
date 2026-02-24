@@ -17,7 +17,7 @@ class UtilCog(discord.Cog):
     def __init__(self):
         self.invite_link = "https://discord.com/oauth2/authorize?client_id=1424873603790540982&scope=bot&permissions=2184268800"
 
-    @discord.command(name="invite", description="DMs you the link to invite me to your server", dm_permission=True)
+    @discord.slash_command(name="invite", description="DMs you the link to invite me to your server", dm_permission=True)
     async def cmd_invite(self, ctx: discord.ApplicationContext):
         """
         Sends the relevant invite link to the user who asked
