@@ -133,8 +133,7 @@ def adjust_pronunciation(text: str, voice: str, guild_id: int) -> str:
     # --------------------------------
 
     # ----- HANDLE DISCORD EMOJI -----
-    # discord_emoji = re.findall(r"")
-
+    text = re.sub(r"<a?:(.*?):[0-9]+>", r"\1", text)
     # --------------------------------
 
     # max 1 space between words, and no whitespace on ends
