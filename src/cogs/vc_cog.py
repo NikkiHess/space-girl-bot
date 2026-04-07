@@ -152,8 +152,6 @@ class VCCog(commands.Cog):
                 return_code = self.tts_manager.download_and_queue(input, TTV[voice_internal], ctx.guild_id)
         
         # error return codes? make error known
-        if return_code == TRC.TOO_LONG:
-            await ctx.respond(f"❌ Input was too long. Max length is {ttsd.MAX_LEN} chars.\n Note that emojis take more space than they appear to.")
         if return_code == TRC.LANGUAGE_UNSUPPORTED:
             await ctx.respond(f"❌ Invalid phonemes or characters in input.")
         if return_code == TRC.TEMP_UNAVAILABLE:
@@ -162,7 +160,7 @@ class VCCog(commands.Cog):
             await ctx.respond(f"❌ Generic error from lazypyro.")
 
         # any error should cause an exit
-        if return_code != TRC.QUEUED:
+        if return_code != TRC.OKAY:
             return
 
         tsprint(f"Queued TTS \"{input}\" in guild {ctx.guild_id}")

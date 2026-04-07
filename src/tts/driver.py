@@ -152,12 +152,45 @@ def adjust_pronunciation(text: str, voice: str) -> str:
         
     return text
 
-def download_and_queue_tiktok(adjusted_input: str, voice: TTV, tts_queue_deque: deque) -> TRC:
+def smart_split_input_text(input_text: str):
+    split_text = []
+
+    # if input length is too long, split by length constrained by whitespace and punctuation
+    if len(input_text) > MAX_LEN:
+        while len(input_text) > 0:
+            max_len_chunk = input_text[:MAX_LEN]
+            
+            # if the max length chunk is maximum length, find the last whitespace character and cut it off there instead
+            if len(max_len_chunk) == MAX_LEN:
+                whitespace_matches = re.finditer(r"\s", max_len_chunk)
+                whitespace_match_data = [{
+                    "char": match.group(0),
+                    "index": match.start()
+                } for match in whitespace_matches]
+                last_match = {
+                    "char": whitespace_match_data[-1]["char"],
+                    "index": whitespace_match_data[-1]["index"]
+                }
+
+                if whitespace_match_data:
+                    max_len_chunk = input_text[:last_match["index"]]
+                
+                input_text = input_text.removeprefix(max_len_chunk + last_match["char"])
+            # if it isn't maximum length, we can just clear the input text and split by the maximum length no problem
+            else: 
+                input_text = ""
+
+            split_text.append(max_len_chunk)
+    else: split_text.append(input_text)
+
+    return split_text
+
+def download_and_queue_tiktok(input_text: str, voice: TTV, tts_queue_deque: deque) -> TRC:
     """
     downloads a TikTok voice line and adds it to the TTS queue
 
-    :param input: the text to speak
-    :type input: str
+    :param input_text: the text to speak
+    :type input_text: str
     :param voice: the TikTok voice to use
     :type voice: TVV
     :param tts_queue_deque: the tts deque (from dict) to add to
@@ -167,58 +200,57 @@ def download_and_queue_tiktok(adjusted_input: str, voice: TTV, tts_queue_deque: 
     """
 
     tsprint(f"Getting {voice.name} TTS...")
-
-    # strip illegal chars from input to put into filename
-    filename = re.sub(r'[\\/*?:"<>,|]', "", adjusted_input)
-    filename = filename[:100] + "..."
-
-    # make sure filename is not too long (factoring in .mp3)
-    filepath = os.path.join("downloads", f"{filename}.mp3")
-
     # make any necessary pronunciation changes/emoji translations prior to checking repeat chars
-    adjusted_input = adjust_pronunciation(adjusted_input, voice.name)
+    adjusted_input = adjust_pronunciation(input_text, voice.name)
 
-    # make sure final input length is not too long
-    if len(adjusted_input) > MAX_LEN:
-        return TRC.TOO_LONG
+    # use chunking, if necessary
+    smart_split = smart_split_input_text(adjusted_input)
 
-    # request from the lazypyro API
-    url = f"https://lazypy.ro/tts/request_tts.php"
-    headers = {
-        "content-type": "application/x-www-form-urlencoded",
-        "origin": "https://lazypy.ro",
-        "referer": url,
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
-    data = {
-        "service": "TikTok",
-        "voice": voice.value,
-        "text": adjusted_input
-    }
-    response = requests.post(url, headers=headers, data=data)
+    for split_item in smart_split:
+        # strip illegal chars from input to put into filename
+        filename = re.sub(r'[\\/*?:"<>,|]', "", split_item)
+        filename = filename[:100] + "..."
 
-    response = response.json() # get response json
+        # make sure filename is not too long (factoring in .mp3)
+        filepath = os.path.join("downloads", f"{filename}.mp3")
 
-    if not response["success"]:
-        error_msg = response["error_msg"]
-        tsprint(f"Could not get TTS from lazypyro. {error_msg}")
+        # request from the lazypyro API
+        url = f"https://lazypy.ro/tts/request_tts.php"
+        headers = {
+            "content-type": "application/x-www-form-urlencoded",
+            "origin": "https://lazypy.ro",
+            "referer": url,
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        data = {
+            "service": "TikTok",
+            "voice": voice.value,
+            "text": split_item
+        }
+        response = requests.post(url, headers=headers, data=data)
 
-        if "supported for this language" in error_msg:
-            return TRC.LANGUAGE_UNSUPPORTED
-        elif "generation is temporarily unavailable":
-            return TRC.TEMP_UNAVAILABLE
-        
-        return TRC.GENERIC_ERROR
+        response = response.json() # get response json
 
-    audio_url = response["audio_url"]
-    audio_response = requests.get(audio_url)
-    decoded_audio_bytes = audio_response.content
+        if not response["success"]:
+            error_msg = response["error_msg"]
+            tsprint(f"Could not get TTS from lazypyro. {error_msg}")
 
-    with open(filepath, "wb") as file:
-        file.write(decoded_audio_bytes)
+            if "supported for this language" in error_msg:
+                return TRC.LANGUAGE_UNSUPPORTED
+            elif "generation is temporarily unavailable":
+                return TRC.TEMP_UNAVAILABLE
+            
+            return TRC.GENERIC_ERROR
 
-        tsprint(f"Saved TTS to \"{filepath}\"")
+        audio_url = response["audio_url"]
+        audio_response = requests.get(audio_url)
+        decoded_audio_bytes = audio_response.content
 
-    tts_queue_deque.append(filepath)
+        with open(filepath, "wb") as file:
+            file.write(decoded_audio_bytes)
+
+            tsprint(f"Saved TTS to \"{filepath}\"")
+
+        tts_queue_deque.append(filepath)
 
     return TRC.OKAY
