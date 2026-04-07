@@ -1,5 +1,5 @@
 """
-the module that handles tts interactions (right now just TTSVibes)
+the module that handles tts interactions
 """
 
 # built-in modules
@@ -7,26 +7,24 @@ import os
 import re
 from collections import deque
 import requests
-import base64
 import json
 from pathlib import Path
 
 # PyPI modules
 import emoji
-import discord
 
 # my modules
 from src.utils.logging_utils import timestamp_print as tsprint
-from src.tts.voices import TTSVibesVoice as TVV
+from src.tts.voices import TikTokVoice as TTV
 from src.tts.returncodes import TTSReturnCode as TRC
 
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
-MAX_LEN = 300 # TTSVibes limits us here. TODO: dynamic length for different services?
-TTSVIBES_MAX_REPEAT = 4
-TTSVIBES_VOICES = [voice.replace("_", " ") for voice in TVV._member_names_]
-TTS_VOICES = TTSVIBES_VOICES + [] # you can add more :3
+MAX_LEN = 300 # TikTok voices limit us here. TODO: dynamic length for different services?
+TIKTOK_MAX_REPEAT = 4
+TIKTOK_VOICES = [voice.replace("_", " ") for voice in TTV._member_names_]
+TTS_VOICES = TIKTOK_VOICES + [] # you can add more :3
 
 EMOJI_DICT = Path(f"{os.getcwd()}/emoji.json") # read in emoji.json
 EMOJI_DICT = EMOJI_DICT.read_text(encoding="utf-8") # read text from emoji.json
@@ -69,8 +67,8 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     # TODO: handle "wa" -> "wah", but not when it would be washington (after a comma)
     # TODO: add filtering for "hahaha" -> "ha ha ha", applies to any number of ha's
     
-    # TTS vibes pronounces the same words wrongly across voices
-    if voice in TTSVIBES_VOICES:
+    # TikTok voices pronounce the same words wrongly
+    if voice in TIKTOK_VOICES:
         LEGACY_PRONUNCIATION_DICTIONARY = {
             "lol": {
                 "translation": "lawl",
@@ -154,13 +152,13 @@ def adjust_pronunciation(text: str, voice: str) -> str:
         
     return text
 
-def download_and_queue_tiktok(input: str, voice: TVV, tts_queue_deque: deque) -> int:
+def download_and_queue_tiktok(adjusted_input: str, voice: TTV, tts_queue_deque: deque) -> TRC:
     """
-    downloads a voice line from the TTS Vibes API and adds it to the TTS queue
+    downloads a TikTok voice line and adds it to the TTS queue
 
     :param input: the text to speak
     :type input: str
-    :param voice: the TTS Vibes voice to use
+    :param voice: the TikTok voice to use
     :type voice: TVV
     :param tts_queue_deque: the tts deque (from dict) to add to
     :type tts_queue_deque: deque
@@ -171,65 +169,50 @@ def download_and_queue_tiktok(input: str, voice: TVV, tts_queue_deque: deque) ->
     tsprint(f"Getting {voice.name} TTS...")
 
     # strip illegal chars from input to put into filename
-    filename = re.sub(r'[\\/*?:"<>,|]', "", input)
+    filename = re.sub(r'[\\/*?:"<>,|]', "", adjusted_input)
+    filename = filename[:100] + "..."
 
     # make sure filename is not too long (factoring in .mp3)
-    if len(filename) > 251:
-        return TRC.TOO_LONG
     filepath = os.path.join("downloads", f"{filename}.mp3")
 
     # make any necessary pronunciation changes/emoji translations prior to checking repeat chars
-    input = adjust_pronunciation(input, voice.name)
+    adjusted_input = adjust_pronunciation(adjusted_input, voice.name)
 
     # make sure final input length is not too long
-    if len(input) > MAX_LEN:
+    if len(adjusted_input) > MAX_LEN:
         return TRC.TOO_LONG
-    
-    # if we have even a single instance of too many repeat chars, shut it down
-    if re.search("((\\S)\\2{" + str(TTSVIBES_MAX_REPEAT) + ",})", input):
-        return TRC.TOO_MANY_REPEAT_CHARS
 
-    # request from the TTS Vibes API (subject to change)
-    url = "https://ttsvibes.com/?/generate"
+    # request from the lazypyro API
+    url = f"https://lazypy.ro/tts/request_tts.php"
     headers = {
-        "x-sveltekit-action": "true",
         "content-type": "application/x-www-form-urlencoded",
-        "origin": "https://ttsvibes.com",
-        "referer": "https://ttsvibes.com/storyteller",
-        "user-agent": "Mozilla/5.0"
+        "origin": "https://lazypy.ro",
+        "referer": url,
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
     data = {
-        "selectedVoiceValue": voice.value,
-        "text": input
+        "service": "TikTok",
+        "voice": voice.value,
+        "text": adjusted_input
     }
-
     response = requests.post(url, headers=headers, data=data)
 
     response = response.json() # get response json
 
-    # sometimes even with my filters TTSVibes just doesn't like stuff
-    # tts vibes just doesn't like spammy stuff I guess...
-    if response["type"] == "error":
-        error_msg = response["error"]["message"]
-        tsprint(f"Could not get TTS from TTS Vibes. {error_msg}")
+    if not response["success"]:
+        error_msg = response["error_msg"]
+        tsprint(f"Could not get TTS from lazypyro. {error_msg}")
 
         if "supported for this language" in error_msg:
             return TRC.LANGUAGE_UNSUPPORTED
         elif "generation is temporarily unavailable":
             return TRC.TEMP_UNAVAILABLE
         
-        return TRC.GENERIC_TTSVIBES_ERROR
+        return TRC.GENERIC_ERROR
 
-    response = response["data"] # get data (actual response payload)
-
-    # parse data json string
-    parsed_data = json.loads(response)
-
-    # in the json data, the base64 string is 3rd within a list
-    base64_string = parsed_data[2]
-
-    # decode to bytes
-    decoded_audio_bytes = base64.b64decode(base64_string)
+    audio_url = response["audio_url"]
+    audio_response = requests.get(audio_url)
+    decoded_audio_bytes = audio_response.content
 
     with open(filepath, "wb") as file:
         file.write(decoded_audio_bytes)

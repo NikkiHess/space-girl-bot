@@ -16,7 +16,7 @@ import discord
 # my modules
 from src.tts import driver as ttsd
 from src.tts.returncodes import TTSReturnCode as TRC
-from .voices import TTSVibesVoice as TVV
+from .voices import TikTokVoice as TTV
 from ..errors import *
 from ..utils.logging_utils import timestamp_print as tsprint
 from ..vc.vc_state import VCState
@@ -40,9 +40,9 @@ class TTSManager():
         if guild_id not in self.tts_queue_dict:
             self.tts_queue_dict[guild_id] = {voice: deque() for voice in ttsd.TTS_VOICES}
 
-    def download_and_queue(self, input: str, voice: TVV, guild_id: int) -> TRC:
+    def download_and_queue(self, input: str, voice: TTV, guild_id: int) -> TRC:
         """
-        Wraps tts_driver.download_and_queue_tts_vibes
+        Chooses the proper method for downloading and queueing TTS
         
         :param input: the text to speak
         :type input: str

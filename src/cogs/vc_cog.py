@@ -14,7 +14,7 @@ from discord.ext import commands
 # my modules
 from src.db import driver as dbd
 from src.tts import driver as ttsd
-from src.tts.voices import TTSVibesVoice as TVV
+from src.tts.voices import TikTokVoice as TTV
 from src.utils.logging_utils import timestamp_print as tsprint
 from src.utils.discord_utils import get_random_app_emoji
 from src.errors import *
@@ -80,7 +80,7 @@ class VCCog(commands.Cog):
     )
     async def cmd_tts(self, ctx: discord.ApplicationContext, input: str, voice: str):
         """
-        Does TTS, currently only through TTS Vibes (soon to include Moonbase Alpha, REPO)
+        Does TTS (soon to include Moonbase Alpha, REPO)
         """
         # silently acknowledge the command while we process
         await ctx.defer()
@@ -90,7 +90,6 @@ class VCCog(commands.Cog):
         self.tts_manager.init_guild(ctx.guild_id)
 
         # if the user isn't in a VC, it doesn't make sense to do TTS
-        # TODO: evaluate this, server setting?
         author_vc = ctx.author.voice
         if author_vc is None:
             await ctx.respond("❌ You are not in a VC.")
@@ -148,24 +147,22 @@ class VCCog(commands.Cog):
             # TODO: can this be updated to use the list in ttsd instead?
             voice_internal = voice.replace(" ", "_") # internal voice names are goofy, translate them pls
 
-            # is this a TTSVibes voice?
-            if voice_internal in TVV._member_names_:
-                return_code = self.tts_manager.download_and_queue(input, TVV[voice_internal], ctx.guild_id)
+            # is this a LazyPyro voice?
+            if voice_internal in TTV._member_names_:
+                return_code = self.tts_manager.download_and_queue(input, TTV[voice_internal], ctx.guild_id)
         
         # error return codes? make error known
         if return_code == TRC.TOO_LONG:
             await ctx.respond(f"❌ Input was too long. Max length is {ttsd.MAX_LEN} chars.\n Note that emojis take more space than they appear to.")
-        if return_code == TRC.TOO_MANY_REPEAT_CHARS:
-            await ctx.respond(f"❌ Input had too many repeat characters. Max repeat length is {ttsd.TTSVIBES_MAX_REPEAT} chars.")
         if return_code == TRC.LANGUAGE_UNSUPPORTED:
-            await ctx.respond(f"❌ The TTS engine did not like some of the phonemes or characters in your input (unsupported language error)\n- If it's spammy, try breaking it up a little. The input might just have a single token that's a touch too long.\n- If it contains non-ASCII characters, remove those characters")
+            await ctx.respond(f"❌ Invalid phonemes or characters in input.")
         if return_code == TRC.TEMP_UNAVAILABLE:
-            await ctx.respond(f"❌ TTS Vibes is temporarily unavailable.")
-        if return_code == TRC.GENERIC_TTSVIBES_ERROR:
-            await ctx.respond(f"❌ TTS Vibes didn't like that one. It tends to not like spammy stuff, try something less spammy I guess.")
+            await ctx.respond(f"❌ Lazypyro is temporarily unavailable.")
+        if return_code == TRC.GENERIC_ERROR:
+            await ctx.respond(f"❌ Generic error from lazypyro.")
 
         # any error should cause an exit
-        if return_code != TRC.OKAY:
+        if return_code != TRC.QUEUED:
             return
 
         tsprint(f"Queued TTS \"{input}\" in guild {ctx.guild_id}")
