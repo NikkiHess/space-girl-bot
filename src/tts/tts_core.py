@@ -40,7 +40,7 @@ class TTSManager():
         if guild_id not in self.tts_queue_dict:
             self.tts_queue_dict[guild_id] = {voice: deque() for voice in ttsd.TTS_VOICES}
 
-    def download_and_queue(self, input: str, voice: TVV, guild_id: TRC) -> int:
+    def download_and_queue(self, input: str, voice: TVV, guild_id: int) -> TRC:
         """
         Wraps tts_driver.download_and_queue_tts_vibes
         
@@ -53,9 +53,10 @@ class TTSManager():
         :return: the return code from the function
         :rtype: TRC
         """
-        queue_deque = self.tts_queue_dict[guild_id][voice.name]
+        voice_name_spaces = voice.name.replace("_", " ")
+        queue_deque = self.tts_queue_dict[guild_id][voice_name_spaces]
 
-        return ttsd.download_and_queue_tts_vibes(input, voice, queue_deque)
+        return ttsd.download_and_queue_tiktok(input, voice, queue_deque)
     
 class TTSBackgroundTask():
     """
