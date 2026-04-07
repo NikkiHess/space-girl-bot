@@ -110,17 +110,48 @@ class VCCog(commands.Cog):
                 await ctx.respond("❌ You need to specify a voice or set a default with /settings voice")
                 return
 
+        
+        # ----- HANDLE DISCORD EMOJI -----
+        # discord_emoji = re.findall(r"")
+
+        # --------------------------------
+
+        # ----- HANDLE PINGS -----
+        # translate raw user mentions to nicknames
+        raw_mentions = discord.utils.raw_mentions(input)
+        for user_id in raw_mentions:
+            input = input.replace(
+                f"<@{user_id}>",
+                "@" + ctx.guild.get_member(user_id).nick
+            )
+        
+        # translate raw role mentions to role names
+        raw_mentions = discord.utils.raw_role_mentions(input)
+        for role_id in raw_mentions:
+            input = input.replace(
+                f"<@&{role_id}>",
+                "@" + ctx.guild.get_role(role_id).name
+            )
+        
+        # translate raw channel mentions to role names
+        raw_mentions = discord.utils.raw_channel_mentions(input)
+        for channel_id in raw_mentions:
+            input = input.replace(
+                f"<#{channel_id}>",
+                "#" + ctx.guild.get_channel(channel_id).name.replace("-", " ")
+            )
+        # --------------------------------
+
         return_code = TRC.NONE
         # download and queue the voice line
         if voice in ttsd.TTS_VOICES:
             # TODO: can this be updated to use the list in ttsd instead?
             voice_internal = voice.replace(" ", "_") # internal voice names are goofy, translate them pls
 
-            # is this as TTSVibes voice?
+            # is this a TTSVibes voice?
             if voice_internal in TVV._member_names_:
                 return_code = self.tts_manager.download_and_queue(input, TVV[voice_internal], ctx.guild_id)
         
-
         # error return codes? make error known
         if return_code == TRC.TOO_LONG:
             await ctx.respond(f"❌ Input was too long. Max length is {ttsd.MAX_LEN} chars.\n Note that emojis take more space than they appear to.")
