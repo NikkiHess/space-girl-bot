@@ -61,7 +61,6 @@ class VCCog(commands.Cog):
         self.vc_state.set_vc_state(guild_id, None)
         tsprint("Bot left VC successfully")
 
-    # TODO: make it possible to monitor a certain chat for messages and read those in the user's voice. make this togglable per-user.
     # COMMANDS
     @discord.slash_command(
         name="tts",
@@ -108,17 +107,51 @@ class VCCog(commands.Cog):
             if db_user_voice:
                 voice = db_user_voice
             else:
-                await ctx.respond("❌ You need to specify a voice or set a default with /settings user voice")
+                await ctx.respond("❌ You need to specify a voice or set a default with /settings voice")
                 return
+
+        
+        # ----- HANDLE DISCORD EMOJI -----
+        # discord_emoji = re.findall(r"")
+
+        # --------------------------------
+
+        # ----- HANDLE PINGS -----
+        # translate raw user mentions to nicknames
+        raw_mentions = discord.utils.raw_mentions(input)
+        for user_id in raw_mentions:
+            input = input.replace(
+                f"<@{user_id}>",
+                "@" + ctx.guild.get_member(user_id).nick
+            )
+        
+        # translate raw role mentions to role names
+        raw_mentions = discord.utils.raw_role_mentions(input)
+        for role_id in raw_mentions:
+            input = input.replace(
+                f"<@&{role_id}>",
+                "@" + ctx.guild.get_role(role_id).name
+            )
+        
+        # translate raw channel mentions to role names
+        raw_mentions = discord.utils.raw_channel_mentions(input)
+        for channel_id in raw_mentions:
+            input = input.replace(
+                f"<#{channel_id}>",
+                "#" + ctx.guild.get_channel(channel_id).name.replace("-", " ")
+            )
+        # --------------------------------
 
         return_code = TRC.NONE
         # download and queue the voice line
         if voice in ttsd.TTS_VOICES:
-            # is this a TTSVibes voice?
-            if voice in ttsd.TTSVIBES_VOICES:
-                return_code = self.tts_manager.download_and_queue(input, voice, ctx.guild_id)
-        
+            # TODO: can this be updated to use the list in ttsd instead?
+            voice_internal = voice.replace(" ", "_") # internal voice names are goofy, translate them pls
 
+            # is this a TTSVibes voice?
+            if voice_internal in TVV._member_names_:
+                return_code = self.tts_manager.download_and_queue(input, TVV[voice_internal], ctx.guild_id)
+        
         # error return codes? make error known
         if return_code == TRC.TOO_LONG:
             await ctx.respond(f"❌ Input was too long. Max length is {ttsd.MAX_LEN} chars.\n Note that emojis take more space than they appear to.")
@@ -126,6 +159,8 @@ class VCCog(commands.Cog):
             await ctx.respond(f"❌ Input had too many repeat characters. Max repeat length is {ttsd.TTSVIBES_MAX_REPEAT} chars.")
         if return_code == TRC.LANGUAGE_UNSUPPORTED:
             await ctx.respond(f"❌ The TTS engine did not like some of the phonemes or characters in your input (unsupported language error)\n- If it's spammy, try breaking it up a little. The input might just have a single token that's a touch too long.\n- If it contains non-ASCII characters, remove those characters")
+        if return_code == TRC.TEMP_UNAVAILABLE:
+            await ctx.respond(f"❌ TTS Vibes is temporarily unavailable.")
         if return_code == TRC.GENERIC_TTSVIBES_ERROR:
             await ctx.respond(f"❌ TTS Vibes didn't like that one. It tends to not like spammy stuff, try something less spammy I guess.")
 
@@ -141,7 +176,7 @@ class VCCog(commands.Cog):
         if app_emoji:
             message_intro = f"{app_emoji} {voice}"
 
-        await ctx.send_followup(
+        await ctx.followup.send(
             content=f"{message_intro}: {input}\n"
         )
 
