@@ -159,6 +159,8 @@ class VCCog(commands.Cog):
             await ctx.respond(f"❌ Input had too many repeat characters. Max repeat length is {ttsd.TTSVIBES_MAX_REPEAT} chars.")
         if return_code == TRC.LANGUAGE_UNSUPPORTED:
             await ctx.respond(f"❌ The TTS engine did not like some of the phonemes or characters in your input (unsupported language error)\n- If it's spammy, try breaking it up a little. The input might just have a single token that's a touch too long.\n- If it contains non-ASCII characters, remove those characters")
+        if return_code == TRC.TEMP_UNAVAILABLE:
+            await ctx.respond(f"❌ TTS Vibes is temporarily unavailable.")
         if return_code == TRC.GENERIC_TTSVIBES_ERROR:
             await ctx.respond(f"❌ TTS Vibes didn't like that one. It tends to not like spammy stuff, try something less spammy I guess.")
 

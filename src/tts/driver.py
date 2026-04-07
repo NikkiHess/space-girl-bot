@@ -13,6 +13,7 @@ from pathlib import Path
 
 # PyPI modules
 import emoji
+import discord
 
 # my modules
 from src.utils.logging_utils import timestamp_print as tsprint
@@ -44,7 +45,7 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     """
 
     # ----- HANDLE UNICODE EMOJI -----
-    # remove variation selectors first
+    # remove emoji variation selectors first
     text = re.sub(r"[\uFE0F\uFE0E]", "", text)
 
     # callback to replace emoji with their names, more reliable than regex on MANY levels
@@ -58,11 +59,6 @@ def adjust_pronunciation(text: str, voice: str) -> str:
 
     # replaces each emoji with its name surrounded by colons and whitespace
     text = emoji.replace_emoji(text, replace=replace_match)
-    # --------------------------------
-
-    # ----- HANDLE DISCORD EMOJI -----
-    # discord_emoji = re.findall(r"")
-
     # --------------------------------
 
     # max 1 space between words, and no whitespace on ends
@@ -158,7 +154,7 @@ def adjust_pronunciation(text: str, voice: str) -> str:
         
     return text
 
-def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_deque: deque) -> bool:
+def download_and_queue_tiktok(input: str, voice: TVV, tts_queue_deque: deque) -> int:
     """
     downloads a voice line from the TTS Vibes API and adds it to the TTS queue
 
@@ -219,6 +215,8 @@ def download_and_queue_tts_vibes(input: str, voice: TVV, tts_queue_deque: deque)
 
         if "supported for this language" in error_msg:
             return TRC.LANGUAGE_UNSUPPORTED
+        elif "generation is temporarily unavailable":
+            return TRC.TEMP_UNAVAILABLE
         
         return TRC.GENERIC_TTSVIBES_ERROR
 
