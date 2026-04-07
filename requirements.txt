@@ -1,5 +1,5 @@
 requests
 aiohttp
-py-cord[voice]==2.7.0rc2
+py-cord[voice]==2.8.0rc1
 audioop-lts
 emoji
