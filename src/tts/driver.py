@@ -72,80 +72,84 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     if voice in TIKTOK_VOICES:
         LEGACY_PRONUNCIATION_DICTIONARY = {
             "lol": {
-                "translation": "lawl",
+                "pronunciation": "lawl",
                 "case_sensitive": False
             },
             "uwu": {
-                "translation": "ooh woo",
+                "pronunciation": "ooh woo",
                 "case_sensitive": False
             },
             ":3": {
-                "translation": "colon three",
+                "pronunciation": "colon three",
                 "case_sensitive": False
             },
             "minecraft": {
-                "translation": "mine craft",
+                "pronunciation": "mine craft",
                 "case_sensitive": False
             },
             "lmao": {
-                "translation": "LMAO",
+                "pronunciation": "LMAO",
                 "case_sensitive": False
             },
             "labubu": {
-                "translation": "luh booboo",
+                "pronunciation": "luh booboo",
                 "case_sensitive": False
             },
             "bros": {
-                "translation": "bro's",
+                "pronunciation": "bro's",
                 "case_sensitive": False
             },
             "pls": {
-                "translation": "please",
+                "pronunciation": "please",
                 "case_sensitive": False
             },
             "brb": {
-                "translation": "b r b",
+                "pronunciation": "b r b",
                 "case_sensitive": False
             },
             r">:\(": {
-                "translation": "angry face",
+                "pronunciation": "angry face",
                 "case_sensitive": False
             },
             r":\)": {
-                "translation": "smiley face",
+                "pronunciation": "smiley face",
                 "case_sensitive": False
             },
             r":\(": {
-                "translation": "sad face",
+                "pronunciation": "sad face",
                 "case_sensitive": False
             },
             r":o": {
-                "translation": "shocked face",
+                "pronunciation": "shocked face",
                 "case_sensitive": False
             },
             r"D:": {
-                "translation": "big shocked face",
+                "pronunciation": "big shocked face",
                 "case_sensitive": True
             },
             r":D": {
-                "translation": "big smile face",
+                "pronunciation": "big smile face",
                 "case_sensitive": True
             },
             r"<3": {
-                "translation": "heart",
+                "pronunciation": "heart",
                 "case_sensitive": False
             },
             "regex": {
-                "translation": "regh ex",
+                "pronunciation": "regh ex",
+                "case_sensitive": False
+            },
+            "params": {
+                "pronunciation": "puh rams",
                 "case_sensitive": False
             }
         }
             
-        # for each translation, apply to the text
+        # for each pronunciation, apply to the text
         # making sure to account for whether it's case sensitive
         for trigger, data in LEGACY_PRONUNCIATION_DICTIONARY.items():
             flags = re.IGNORECASE if not data["case_sensitive"] else 0
-            text = re.sub(trigger, data["translation"], text, flags=flags)
+            text = re.sub(trigger, data["pronunciation"], text, flags=flags)
 
         # if the whole input is "no", add a period so voice doesn't say "number"
         if text.lower() == "no":
@@ -205,7 +209,7 @@ async def download_and_queue_tiktok(input_text: str, voice: TTV, tts_queue_deque
     """
 
     tsprint(f"Getting {voice.name} TTS...")
-    # make any necessary pronunciation changes/emoji translations prior to checking repeat chars
+    # make any necessary pronunciation changes/emoji pronunciations prior to checking repeat chars
     adjusted_input = adjust_pronunciation(input_text, voice.name)
 
     # use chunking, if necessary
