@@ -63,7 +63,7 @@ def adjust_pronunciation(text: str, voice: str) -> str:
     # max 1 space between words, and no whitespace on ends
     text = re.sub(r"\s+", " ", text).strip()
 
-    # TODO: handle Discord emojis
+    # TODO: handle Discord emojis, how do we/can we make it so that they can come through the bot's messages?
     # TODO: add this to database, make way to add global pronunciation via bot (NIKKI ONLY)
     # TODO: handle "wa" -> "wah", but not when it would be washington (after a comma)
     # TODO: add filtering for "hahaha" -> "ha ha ha", applies to any number of ha's

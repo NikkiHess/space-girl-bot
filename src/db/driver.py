@@ -34,7 +34,7 @@ def init_db() -> None:
                                 name TEXT UNIQUE NOT NULL
                             );
 
-                            CREATE TABLE IF NOT EXISTS translations (
+                            CREATE TABLE IF NOT EXISTS pronunciations (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 server_id INTEGER NOT NULL,
                                 voice_id INTEGER NOT NULL,
@@ -104,10 +104,10 @@ def init_user_settings(user_id: int) -> int:
 
 def add_pronunciation(guild_id: int, voice_name: str, text: str, pronunciation: str) -> None:
     """
-    Adds a pronunciation translation to the server/voice.
+    Adds a pronunciation to the server/voice.
 
-    :param int guild_id: the guild ID to insert the translation into, -1 will modify the bot's global dictionary
-    :param str voice_name: the voice name to insert the translation into, "All Voices" will modify the global voice dictionary
+    :param int guild_id: the guild ID to insert the pronunciation into, -1 will modify the bot's global dictionary
+    :param str voice_name: the voice name to insert the pronunciation into, "All Voices" will modify the global voice dictionary
     :param str text: the text to pronounce differently
     :param str pronunciation: the pronunciation from that text
     """
@@ -119,51 +119,51 @@ def add_pronunciation(guild_id: int, voice_name: str, text: str, pronunciation: 
         cursor = connection.cursor()
             
         cursor.execute("""
-                        INSERT OR REPLACE INTO translations (server_id, voice_id, text, pronunciation)
+                        INSERT OR REPLACE INTO pronunciations (server_id, voice_id, text, pronunciation)
                         VALUES (?, ?, ?, ?)
                     """, (server_id, voice_id, text, pronunciation))
         connection.commit()
 
 def get_pronunciation(guild_id: int, voice_name: str, text: str) -> str | None:
     """
-    Retrieves the translation for the text - used by a voice.
+    Retrieves the pronunciation for the text - used by a voice.
 
-    :param int guild_id: the guild ID to get the translation from, -1 will check the bot's global dictionary
+    :param int guild_id: the guild ID to get the pronunciation from, -1 will check the bot's global dictionary
     :param str voice_name: the voice name to get the pronunciation from, "All Voices" will check global voice dictionary
     :param str text: the text to retrieve the pronunciation for
 
-    :returns str | None: the translation if it exists, otherwise None
+    :returns str | None: the pronunciation if it exists, otherwise None
     """
 
     with get_conn() as connection:
         cursor = connection.cursor()
             
         cursor.execute(f"""
-                        SELECT translation.pronunciation
-                        FROM translations translation
-                        JOIN servers server ON translation.server_id = server.id
-                        JOIN voices voice ON translation.voice_id = voice.id
-                        WHERE server.guild_id = ? AND voice.name = ? AND translation.text = ?
+                        SELECT pronunciation.pronunciation
+                        FROM pronunciations pronunciation
+                        JOIN servers server ON pronunciation.server_id = server.id
+                        JOIN voices voice ON pronunciation.voice_id = voice.id
+                        WHERE server.guild_id = ? AND voice.name = ? AND pronunciation.text = ?
                     """, (guild_id, voice_name, text))
         result = cursor.fetchone()
         return result[0] if result else None
 
 def remove_pronunciation(guild_id: int, voice_name: str, text: str) -> bool:
     """
-    Removes a pronunciation translation from the server/voice.
+    Removes a pronunciation from the server/voice.
 
-    :param int guild_id: the guild ID to remove the translation from, -1 will modify the bot's global dictionary
-    :param str voice_name: the voice name to remove the translation from, "All Voices" will modify global voice dictionary
+    :param int guild_id: the guild ID to remove the pronunciation from, -1 will modify the bot's global dictionary
+    :param str voice_name: the voice name to remove the pronunciation from, "All Voices" will modify global voice dictionary
     :param str text the text whose pronunciation should be removed
 
-    :return bool: True if a pronunciation translation was removed, False if none existed to begin with
+    :return bool: True if a pronunciation was removed, False if none existed to begin with
     """
 
     with get_conn() as connection:
         cursor = connection.cursor()
             
         cursor.execute("""
-                        DELETE FROM translations
+                        DELETE FROM pronunciations
                         WHERE server_id = (
                             SELECT s.id FROM servers s WHERE s.guild_id = ?
                         )
@@ -180,9 +180,9 @@ def remove_pronunciation(guild_id: int, voice_name: str, text: str) -> bool:
 
 def list_pronunciations(guild_id: int, voice_name: str) -> dict[str, str]:
     """
-    Removes a pronunciation translation from the server/voice.
+    Removes a pronunciation pronunciation from the server/voice.
 
-    :param int guild_id: the guild ID to remove the translation from, -1 will modify the bot's global dictionary
+    :param int guild_id: the guild ID to remove the pronunciation from, -1 will modify the bot's global dictionary
     :param str voice_name: the voice name to list pronunciations for, "All Voices" will modify the global voice dictionary
 
     :return dict[str, str]: the pronunciations found in the database
@@ -217,7 +217,7 @@ def list_pronunciations(guild_id: int, voice_name: str) -> dict[str, str]:
         # get pronunciations as a dict
         pronunciation_rows = cursor.execute(
             """
-            SELECT text, pronunciation FROM translations WHERE server_id = ? AND voice_id = ?
+            SELECT text, pronunciation FROM pronunciations WHERE server_id = ? AND voice_id = ?
             """,
             (server_id, voice_id)
         ).fetchall()
