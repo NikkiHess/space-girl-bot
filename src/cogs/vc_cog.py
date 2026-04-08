@@ -149,7 +149,7 @@ class VCCog(commands.Cog):
 
             # is this a LazyPyro voice?
             if voice_internal in TTV._member_names_:
-                return_code = self.tts_manager.download_and_queue(input, TTV[voice_internal], ctx.guild_id)
+                return_code = await self.tts_manager.download_and_queue(input, TTV[voice_internal], ctx.guild_id)
         
         # error return codes? make error known
         if return_code == TRC.LANGUAGE_UNSUPPORTED:
@@ -162,8 +162,6 @@ class VCCog(commands.Cog):
         # any error should cause an exit
         if return_code != TRC.OKAY:
             return
-
-        tsprint(f"Queued TTS \"{input}\" in guild {ctx.guild_id}")
         
         # handle message intro with voice emoji and name
         app_emoji = await get_random_app_emoji(self.bot, voice)
@@ -208,7 +206,7 @@ class VCCog(commands.Cog):
 
         await ctx.edit(content=f"✅ Successfully joined **{voice_channel.name}**! Use /tts to speak.")
 
-    @discord.command(description="Leaves whatever voice chat it's currently in.")
+    @discord.command(name="leave", description="Leaves whatever voice chat it's currently in.")
     async def cmd_leave(self, ctx: discord.ApplicationContext):
         """
         Command wrapper to leave VC from current guild.
@@ -216,6 +214,9 @@ class VCCog(commands.Cog):
         await self.try_leave_vc(ctx.guild_id, ctx)
 
     # EVENTS
+
+    # TODO: make it so when the bot leaves it clears the TTS queue and deletes all files for the server
+    # in order to do this we may need separate folders for each server within /downloads
     @discord.Cog.listener()
     async def on_voice_state_update(
         self,

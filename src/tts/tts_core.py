@@ -40,7 +40,7 @@ class TTSManager():
         if guild_id not in self.tts_queue_dict:
             self.tts_queue_dict[guild_id] = {voice: deque() for voice in ttsd.TTS_VOICES}
 
-    def download_and_queue(self, input: str, voice: TTV, guild_id: int) -> TRC:
+    async def download_and_queue(self, input: str, voice: TTV, guild_id: int) -> TRC:
         """
         Chooses the proper method for downloading and queueing TTS
         
@@ -56,7 +56,7 @@ class TTSManager():
         voice_name_spaces = voice.name.replace("_", " ")
         queue_deque = self.tts_queue_dict[guild_id][voice_name_spaces]
 
-        return ttsd.download_and_queue_tiktok(input, voice, queue_deque)
+        return await ttsd.download_and_queue_tiktok(input, voice, queue_deque)
     
 class TTSBackgroundTask():
     """
@@ -114,33 +114,34 @@ class TTSBackgroundTask():
         """
         Processes TTS queue - runs in Pycord event loop
         """
-
-        def make_after_callback(tts_filename, guild_id):
+        def make_after_callback(tts_filepath: str, tts_filename: str, guild_id: int):
             def after_play(_):  # The `_` is the exception Pycord passes
-                tsprint(f"Audio done playing in {guild_id}: {tts_filename}")
+                tsprint(f"Audio done playing in {guild_id}: \"{tts_filename}\"")
                 try:
-                    os.remove(tts_filename)
+                    os.remove(tts_filepath)
                     tsprint(f"Deleted \"{tts_filename}\"")
                 except FileNotFoundError:
-                    tsprint(f"File {tts_filename} already deleted")
+                    tsprint(f"File \"{tts_filename}\" already deleted")
             return after_play
 
+        # eternally loop over vc_dict items for each guild
         while True:
             for guild_id, vc in voice_state.vc_dict.items():
                 if vc is None or not vc.is_connected():
                     continue
-
+                
                 for voice, queue in tts_manager.tts_queue_dict[guild_id].items():
                     if queue and not vc.is_playing():
                         tts_filename = queue.popleft()
-                        tsprint(f"Playing queued TTS {tts_filename} in guild {guild_id}")
+                        tts_filepath = f"downloads/{tts_filename}"
+                        tsprint(f"Playing queued TTS \"{tts_filename}\" in guild {guild_id}")
 
                         try:
                             tts_audio_source = discord.FFmpegOpusAudio(
                                 executable=self.ffmpeg_path,
-                                source=tts_filename
+                                source=tts_filepath
                             )
-                            vc.play(tts_audio_source, after=make_after_callback(tts_filename, guild_id))
+                            vc.play(tts_audio_source, after=make_after_callback(tts_filepath, tts_filename, guild_id))
                         except Exception as e:
                             tsprint(f"Could not play audio for guild {guild_id}: {e}")
             await asyncio.sleep(0.1)

@@ -9,6 +9,7 @@ from collections import deque
 import requests
 import json
 from pathlib import Path
+import aiohttp, asyncio
 
 # PyPI modules
 import emoji
@@ -152,40 +153,44 @@ def adjust_pronunciation(text: str, voice: str) -> str:
         
     return text
 
-def smart_split_input_text(input_text: str):
+def smart_split(input_text: str, max_chunk_length: int = MAX_LEN):
+    """
+    splits an input text by length, constrained by whitespace
+
+    :param str input_text: the text to split
+    :param int max_chunk_length: the max length of the split, defaults to the program's max length
+    :return TRC: the return code, to indicate whether valid or not and in what way
+    """
     split_text = []
 
-    # if input length is too long, split by length constrained by whitespace and punctuation
-    if len(input_text) > MAX_LEN:
-        while len(input_text) > 0:
-            max_len_chunk = input_text[:MAX_LEN]
-            
-            # if the max length chunk is maximum length, find the last whitespace character and cut it off there instead
-            if len(max_len_chunk) == MAX_LEN:
-                whitespace_matches = re.finditer(r"\s", max_len_chunk)
-                whitespace_match_data = [{
-                    "char": match.group(0),
-                    "index": match.start()
-                } for match in whitespace_matches]
-                last_match = {
-                    "char": whitespace_match_data[-1]["char"],
-                    "index": whitespace_match_data[-1]["index"]
-                }
+    # split by length constrained by whitespace
+    while len(input_text) > 0:
+        chunk = input_text[:max_chunk_length]
+        
+        # if the chunk is maximum length, find the last whitespace character and cut it off there instead
+        if len(chunk) == max_chunk_length:
+            whitespace_matches = re.finditer(r"\s", chunk)
+            whitespace_matches = list(whitespace_matches)
+            last_match = {
+                "char": whitespace_matches[-1].group(0),
+                "index": whitespace_matches[-1].start()
+            }
 
-                if whitespace_match_data:
-                    max_len_chunk = input_text[:last_match["index"]]
-                
-                input_text = input_text.removeprefix(max_len_chunk + last_match["char"])
-            # if it isn't maximum length, we can just clear the input text and split by the maximum length no problem
-            else: 
-                input_text = ""
+            # if we found whitespace, remove trim the max length chunk and remove it from the string
+            if last_match:
+                chunk = input_text[:last_match["index"]]
+                input_text = input_text.replace(chunk + last_match["char"], "", 1)
+            # if no whitespace, just remove the chunk
+            else: input_text = input_text.removeprefix(chunk)
+        # if the chunk isn't maximum length, we can just clear the input text and split by the maximum length no problem
+        else: input_text = ""
 
-            split_text.append(max_len_chunk)
-    else: split_text.append(input_text)
+        # finally, append the split text
+        split_text.append(chunk)
 
     return split_text
 
-def download_and_queue_tiktok(input_text: str, voice: TTV, tts_queue_deque: deque) -> TRC:
+async def download_and_queue_tiktok(input_text: str, voice: TTV, tts_queue_deque: deque) -> TRC:
     """
     downloads a TikTok voice line and adds it to the TTS queue
 
@@ -204,53 +209,59 @@ def download_and_queue_tiktok(input_text: str, voice: TTV, tts_queue_deque: dequ
     adjusted_input = adjust_pronunciation(input_text, voice.name)
 
     # use chunking, if necessary
-    smart_split = smart_split_input_text(adjusted_input)
+    split_text = smart_split(adjusted_input)
 
-    for split_item in smart_split:
-        # strip illegal chars from input to put into filename
-        filename = re.sub(r'[\\/*?:"<>,|]', "", split_item)
-        filename = filename[:100] + "..."
+    async with aiohttp.ClientSession():
+        for index, split_item in enumerate(split_text):
+            # strip illegal chars from input to put into filename
+            filename = re.sub(r'[\\/*?:"<>,|]', "", split_item)
+            filename = f"{filename[:100].rstrip()} part {index}"
+            filename_ext = f"{filename}.mp3"
 
-        # make sure filename is not too long (factoring in .mp3)
-        filepath = os.path.join("downloads", f"{filename}.mp3")
+            # make sure filename is not too long (factoring in .mp3)
+            filepath = os.path.join("downloads", filename_ext)
 
-        # request from the lazypyro API
-        url = f"https://lazypy.ro/tts/request_tts.php"
-        headers = {
-            "content-type": "application/x-www-form-urlencoded",
-            "origin": "https://lazypy.ro",
-            "referer": url,
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-        data = {
-            "service": "TikTok",
-            "voice": voice.value,
-            "text": split_item
-        }
-        response = requests.post(url, headers=headers, data=data)
+            # request from the lazypyro API
+            url = f"https://lazypy.ro/tts/request_tts.php"
+            headers = {
+                "content-type": "application/x-www-form-urlencoded",
+                "origin": "https://lazypy.ro",
+                "referer": url,
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            data = {
+                "service": "TikTok",
+                "voice": voice.value,
+                "text": split_item
+            }
+            response = requests.post(url, headers=headers, data=data)
 
-        response = response.json() # get response json
+            response = response.json() # get response json
 
-        if not response["success"]:
-            error_msg = response["error_msg"]
-            tsprint(f"Could not get TTS from lazypyro. {error_msg}")
+            if not response["success"]:
+                error_msg = response["error_msg"]
+                tsprint(f"Could not get TTS from lazypyro. {error_msg}")
 
-            if "supported for this language" in error_msg:
-                return TRC.LANGUAGE_UNSUPPORTED
-            elif "generation is temporarily unavailable":
-                return TRC.TEMP_UNAVAILABLE
-            
-            return TRC.GENERIC_ERROR
+                if "supported for this language" in error_msg:
+                    return TRC.LANGUAGE_UNSUPPORTED
+                elif "generation is temporarily unavailable":
+                    return TRC.TEMP_UNAVAILABLE
+                
+                return TRC.GENERIC_ERROR
 
-        audio_url = response["audio_url"]
-        audio_response = requests.get(audio_url)
-        decoded_audio_bytes = audio_response.content
+            audio_url = response["audio_url"]
+            audio_response = requests.get(audio_url)
+            decoded_audio_bytes = audio_response.content
 
-        with open(filepath, "wb") as file:
-            file.write(decoded_audio_bytes)
+            with open(filepath, "wb") as file:
+                file.write(decoded_audio_bytes)
 
-            tsprint(f"Saved TTS to \"{filepath}\"")
+                tsprint(f"Saved TTS to \"{filepath}\"")
 
-        tts_queue_deque.append(filepath)
+            tts_queue_deque.append(f"{filename}.mp3")
+
+            tsprint(f"Queued TTS \"{split_item}\"")
+
+            await asyncio.sleep(0.1)
 
     return TRC.OKAY
