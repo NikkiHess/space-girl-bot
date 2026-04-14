@@ -4,7 +4,7 @@ Associates all voices voices with their API names
 from enum import Enum
 
 class TikTokVoice(Enum):
-    # FOR BUG WHERE NO SWEAR WORDS ALLOWED, DUPLICATE THE LAST LETTER
+    # TODO/BUG: for voices where no swearing is allowed, just duplicate the last letter to bypass
 
     # Normal
     Commentator = "en_male_jomboy"

@@ -269,3 +269,5 @@ async def download_and_queue_tiktok(input_text: str, voice: TTV, tts_queue_deque
             await asyncio.sleep(0.1)
 
     return TRC.OKAY
+
+# TODO: add gTTS support (it's free)
