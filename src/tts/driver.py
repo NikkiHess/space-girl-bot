@@ -75,14 +75,6 @@ def adjust_pronunciation(text: str, voice: str) -> str:
                 "pronunciation": "lawl",
                 "case_sensitive": False
             },
-            "uwu": {
-                "pronunciation": "ooh woo",
-                "case_sensitive": False
-            },
-            ":3": {
-                "pronunciation": "colon three",
-                "case_sensitive": False
-            },
             "minecraft": {
                 "pronunciation": "mine craft",
                 "case_sensitive": False
@@ -107,29 +99,45 @@ def adjust_pronunciation(text: str, voice: str) -> str:
                 "pronunciation": "b r b",
                 "case_sensitive": False
             },
-            r">:\(": {
-                "pronunciation": "angry face",
+            r">:\)": {
+                "pronunciation": "evil face",
                 "case_sensitive": False
             },
             r":\)": {
                 "pronunciation": "smiley face",
                 "case_sensitive": False
             },
+            r">:\(": {
+                "pronunciation": "angry face",
+                "case_sensitive": False
+            },
             r":\(": {
                 "pronunciation": "sad face",
                 "case_sensitive": False
             },
-            r":o": {
+            ":o": {
                 "pronunciation": "shocked face",
                 "case_sensitive": False
             },
-            r"D:": {
+            "D:": {
                 "pronunciation": "big shocked face",
                 "case_sensitive": True
             },
-            r":D": {
+            ":D": {
                 "pronunciation": "big smile face",
                 "case_sensitive": True
+            },
+            "uwu": {
+                "pronunciation": "ooh woo",
+                "case_sensitive": False
+            },
+            ">:3": {
+                "pronunciation": "evil cat face",
+                "case_sensitive": False
+            },
+            ":3": {
+                "pronunciation": "cat face",
+                "case_sensitive": False
             },
             r"<3": {
                 "pronunciation": "heart",
@@ -141,6 +149,18 @@ def adjust_pronunciation(text: str, voice: str) -> str:
             },
             "params": {
                 "pronunciation": "puh rams",
+                "case_sensitive": False
+            },
+            "unironically": {
+                "pronunciation": "un ironically",
+                "case_sensitive": False
+            },
+            "ngl": {
+                "pronunciation": "not gonna lie",
+                "case_sensitive": False
+            },
+            "wtf": {
+                "pronunciation": "what the fuck",
                 "case_sensitive": False
             }
         }
