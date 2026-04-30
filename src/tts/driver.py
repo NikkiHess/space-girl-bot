@@ -162,6 +162,10 @@ def adjust_pronunciation(text: str, voice: str) -> str:
             "wtf": {
                 "pronunciation": "what the fuck",
                 "case_sensitive": False
+            },
+            "ykwim": {
+                "pronunciation": "you know what I mean",
+                "case_sensitive": False
             }
         }
             
