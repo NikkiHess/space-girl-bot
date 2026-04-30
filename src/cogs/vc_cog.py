@@ -62,82 +62,65 @@ class VCCog(commands.Cog):
         tsprint("Bot left VC successfully")
 
     # COMMANDS
-    @discord.slash_command(
-        name="tts",
-        description="Does TTS.",
-        dm_permission=False
-    )
-    @discord.option(
-        "input", 
-        type=str, 
-        description=f"The input to read"
-    )
-    @discord.option( # OPTIONAL ARGUMENTS NEED TO BE AFTER NON-OPTIONAL
-        "voice",
-        description="Which voice to use (optional)",
-        choices=ttsd.TTS_VOICES,
-        default=None # make argument optional
-    )
-    async def cmd_tts(self, ctx: discord.ApplicationContext, input: str, voice: str):
+    @discord.Cog.listener()
+    async def on_message(self, message: discord.Message):
         """
         Does TTS (soon to include Moonbase Alpha, REPO)
         """
-        # silently acknowledge the command while we process
-        await ctx.defer()
+        # gather data from the message about its context
+        guild = message.guild
+        author = message.author
+        text_channel = message.channel
+        content = message.content
 
-        # make sure vc and tts queue dicts have entries for this guild
-        self.vc_state.init_guild(ctx.guild_id)
-        self.tts_manager.init_guild(ctx.guild_id)
-
-        # if the user isn't in a VC, it doesn't make sense to do TTS
-        author_vc = ctx.author.voice
-        if author_vc is None:
-            await ctx.respond("❌ You are not in a VC.")
+        db_user_voice = dbd.get_user_voice(author.id)
+        if db_user_voice:
+            voice = db_user_voice
+        else:
+            await text_channel.send("❌ You need to set a voice with /settings user voice")
             return
 
-        if not self.vc_state.is_connected_in_channel(ctx.guild_id, author_vc.channel):
-            await self.try_leave_vc(ctx.guild_id)
-            vc = await author_vc.channel.connect(reconnect=False)
-            self.vc_state.set_vc_state(ctx.guild_id, vc)
-        
-        # if no voice is specified, need to check if user has a default set and use it
-        if voice is None:
-            db_user_voice = dbd.get_user_voice(ctx.author.id)
-            if db_user_voice:
-                voice = db_user_voice
-            else:
-                await ctx.respond("❌ You need to specify a voice or set a default with /settings voice")
-                return
+        # make sure vc and tts queue dicts have entries for this guild
+        self.vc_state.init_guild(guild.id)
+        self.tts_manager.init_guild(guild.id)
 
-        
-        # ----- HANDLE DISCORD EMOJI -----
-        # discord_emoji = re.findall(r"")
+        # if the user isn't in a VC, it doesn't make sense to do TTS
+        author_vc = author.voice
+        if author_vc is None:
+            await text_channel.send("❌ You are not in a VC.")
+            return
+
+        if not self.vc_state.is_connected_in_channel(guild.id, author_vc.channel):
+            await self.try_leave_vc(guild.id)
+            vc = await author_vc.channel.connect(reconnect=False)
+            self.vc_state.set_vc_state(guild.id, vc)
 
         # --------------------------------
 
         # ----- HANDLE PINGS -----
+        # TODO: is there a better way to do this? this feels like it violates DRY
         # translate raw user mentions to nicknames
-        raw_mentions = discord.utils.raw_mentions(input)
+        raw_mentions = discord.utils.raw_mentions(content)
         for user_id in raw_mentions:
-            input = input.replace(
+            content = content.replace(
                 f"<@{user_id}>",
-                "@" + ctx.guild.get_member(user_id).nick
+                "@" + guild.get_member(user_id).nick
             )
         
         # translate raw role mentions to role names
-        raw_mentions = discord.utils.raw_role_mentions(input)
+        raw_mentions = discord.utils.raw_role_mentions(content)
         for role_id in raw_mentions:
-            input = input.replace(
+            content = content.replace(
                 f"<@&{role_id}>",
-                "@" + ctx.guild.get_role(role_id).name
+                "@" + guild.get_role(role_id).name
             )
         
         # translate raw channel mentions to role names
-        raw_mentions = discord.utils.raw_channel_mentions(input)
+        raw_mentions = discord.utils.raw_channel_mentions(content)
         for channel_id in raw_mentions:
-            input = input.replace(
+            content = content.replace(
                 f"<#{channel_id}>",
-                "#" + ctx.guild.get_channel(channel_id).name.replace("-", " ")
+                "#" + guild.get_channel(channel_id).name.replace("-", " ")
             )
         # --------------------------------
 
@@ -149,29 +132,15 @@ class VCCog(commands.Cog):
 
             # is this a LazyPyro voice?
             if voice_internal in TTV._member_names_:
-                return_code = await self.tts_manager.download_and_queue(input, TTV[voice_internal], ctx.guild_id)
+                return_code = await self.tts_manager.download_and_queue(content, TTV[voice_internal], guild.id)
         
         # error return codes? make error known
         if return_code == TRC.LANGUAGE_UNSUPPORTED:
-            await ctx.respond(f"❌ Invalid phonemes or characters in input.")
+            await text_channel.send(f"❌ Unsupported phonemes or characters in message.")
         if return_code == TRC.TEMP_UNAVAILABLE:
-            await ctx.respond(f"❌ Lazypyro is temporarily unavailable.")
+            await text_channel.send(f"❌ Lazypyro is temporarily unavailable.")
         if return_code == TRC.GENERIC_ERROR:
-            await ctx.respond(f"❌ Generic error from lazypyro.")
-
-        # any error should cause an exit
-        if return_code != TRC.OKAY:
-            return
-        
-        # handle message intro with voice emoji and name
-        app_emoji = await get_random_app_emoji(self.bot, voice)
-        message_intro = f"🎤 {voice}"
-        if app_emoji:
-            message_intro = f"{app_emoji} {voice}"
-
-        await ctx.followup.send(
-            content=f"{message_intro}: {input}\n"
-        )
+            await text_channel.send(f"❌ Generic error from lazypyro.")
 
     @discord.slash_command(name="join", description="Joins the voice chat you're currently in.")
     @discord.option(
@@ -250,7 +219,7 @@ class VCCog(commands.Cog):
         
         # BUG: why doesn't this work properly? is it because we rely on self.vc_dict? is there a better way?
         # if VC empty except for bots, leave
-        non_bot_members = [m for m in vc.channel.members if not m.bot]
+        non_bot_members = [member for member in vc.channel.members if not member.bot]
         if not non_bot_members:
             tsprint(f"Nobody in VC {vc.channel.name} except bots. Leaving.")
             await self.try_leave_vc(guild_id)

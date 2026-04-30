@@ -120,7 +120,7 @@ def adjust_pronunciation(text: str, voice: str) -> str:
                 "case_sensitive": False
             },
             "D:": {
-                "pronunciation": "big shocked face",
+                "pronunciation": "shocked face",
                 "case_sensitive": True
             },
             ":D": {
@@ -231,15 +231,16 @@ async def download_and_queue_tiktok(input_text: str, voice: TTV, tts_queue_deque
     :return: the return code, to indicate whether valid or not and in what way
     :rtype: TRC
     """
-
     tsprint(f"Getting {voice.name} TTS...")
     # make any necessary pronunciation changes/emoji pronunciations prior to checking repeat chars
+
     adjusted_input = adjust_pronunciation(input_text, voice.name)
 
     # use chunking, if necessary
     split_text = smart_split(adjusted_input)
 
     async with aiohttp.ClientSession():
+        # for loop will send separate requests for each chunk
         for index, split_item in enumerate(split_text):
             # strip illegal chars from input to put into filename
             filename = re.sub(r'[\\/*?:"<>,|]', "", split_item)

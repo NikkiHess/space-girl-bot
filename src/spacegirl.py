@@ -23,6 +23,7 @@ intents = discord.Intents.default()
 intents.voice_states = True
 intents.members = True
 intents.guilds = True
+intents.message_content = True
 
 tsprint("Starting Space Girl...")
 
