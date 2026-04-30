@@ -12,7 +12,7 @@ import discord
 from discord.ext import commands
 
 # my modules
-from src.db import driver as dbd
+from src.db import user_db
 from src.tts import driver as ttsd
 from src.tts.voices import TikTokVoice as TTV
 from src.utils.logging_utils import timestamp_print as tsprint
@@ -62,18 +62,20 @@ class VCCog(commands.Cog):
         tsprint("Bot left VC successfully")
 
     # COMMANDS
+    # TODO: make sure users can't interrupt each other (for example, longer messages can be interrupted if a user sends a message before it's all done downloading)
     @discord.Cog.listener()
     async def on_message(self, message: discord.Message):
         """
         Does TTS (soon to include Moonbase Alpha, REPO)
         """
+        
         # gather data from the message about its context
         guild = message.guild
         author = message.author
         text_channel = message.channel
         content = message.content
 
-        db_user_voice = dbd.get_user_voice(author.id)
+        db_user_voice = user_db.get_user_voice(author.id)
         if db_user_voice:
             voice = db_user_voice
         else:

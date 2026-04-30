@@ -14,7 +14,7 @@ from discord.ext import commands
 
 # my modules
 from src.tts import driver as ttsd
-from src.db import driver as dbd # NOT DEAD BY DAYLIGHT
+from src.db import guild_db, user_db, driver as dbd
 from src.utils.logging_utils import timestamp_print as tsprint
 from src.views.views import ConfirmView, PageNavView
 
@@ -65,7 +65,7 @@ class SettingsCog(commands.Cog):
         guild_name = ctx.guild.name if not admin_global else "The Whole Bot™"
 
         # admin_global is guild -1
-        existing_pronunciation = dbd.get_pronunciation(guild_id, voice, text)
+        existing_pronunciation = guild_db.get_pronunciation(guild_id, voice, text)
         if existing_pronunciation:
             embed = discord.Embed(
                 title = "Pronunciation Override Confirmation",
@@ -86,7 +86,7 @@ class SettingsCog(commands.Cog):
         else:
             tsprint(f"Adding pronunciation \"{text}\" -> \"{pronunciation}\" to guild {guild_id}")
         
-        dbd.add_pronunciation(guild_id, voice, text, pronunciation)
+        guild_db.add_pronunciation(guild_id, voice, text, pronunciation)
 
         embed = discord.Embed(
             title = "Pronunciation Successfully Added!",
@@ -126,10 +126,10 @@ class SettingsCog(commands.Cog):
         guild_id = ctx.guild_id if not admin_global else -1
         guild_name = ctx.guild.name if not admin_global else "The Whole Bot™"
 
-        existing_pronunciation = dbd.get_pronunciation(guild_id, voice, text)
+        existing_pronunciation = guild_db.get_pronunciation(guild_id, voice, text)
         if existing_pronunciation:
             tsprint(f"Removed pronunciation \"{text}\" -> \"{existing_pronunciation}\" from guild {guild_id}")
-            dbd.remove_pronunciation(guild_id, voice, text)
+            guild_db.remove_pronunciation(guild_id, voice, text)
         
             embed = discord.Embed(
                 title = "Pronunciation Successfully Removed!",
@@ -165,7 +165,7 @@ class SettingsCog(commands.Cog):
         guild_id = ctx.guild_id if not admin_global else -1
         guild_name = ctx.guild.name if not admin_global else "The Whole Bot™"
 
-        pronunciations = dbd.list_pronunciations(guild_id, voice)
+        pronunciations = guild_db.list_pronunciations(guild_id, voice)
         
         # TODO: fix this, shows up weirdly on mobile
 
@@ -221,7 +221,7 @@ class SettingsCog(commands.Cog):
 
         # no voice specified = get settings value
         if not voice:
-            voice_name = dbd.get_user_voice(author_id)
+            voice_name = user_db.get_user_voice(author_id)
 
             if voice_name:
                 await ctx.respond(f"🗣️ Your current voice is **{voice_name}**!")
@@ -235,7 +235,7 @@ class SettingsCog(commands.Cog):
             voice = None
         # voice is guaranteed to be specified at this point
         # set settings value
-        dbd.set_user_voice(author_id, voice)
+        user_db.set_user_voice(author_id, voice)
 
         if voice:
             await ctx.respond(f"✅ Your default voice has been set to **{voice}**! You can now use /tts without specifying a voice.")
