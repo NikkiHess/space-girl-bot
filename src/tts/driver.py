@@ -139,7 +139,7 @@ def adjust_pronunciation(text: str, voice: str) -> str:
                 "pronunciation": "cat face",
                 "case_sensitive": False
             },
-            r"<3": {
+            "<3": {
                 "pronunciation": "heart",
                 "case_sensitive": False
             },
@@ -166,14 +166,49 @@ def adjust_pronunciation(text: str, voice: str) -> str:
             "ykwim": {
                 "pronunciation": "you know what I mean",
                 "case_sensitive": False
+            },
+            "rq": {
+                "pronunciation": "real quick",
+                "case_sensitive": False
+            },
+            "github": {
+                "pronunciation": "git hub",
+                "case_sensitive": False
+            },
+            "fr": {
+                "pronunciation": "for real",
+                "case_sensitive": False
+            },
+            "wdym": {
+                "pronunciation": "what do you mean",
+                "case_sensitive": False
+            },
+            "cuz": {
+                "pronunciation": "cuhs", # TODO: this kinda sucks, find a better one
+                "case_sensitive": False
+            },
+            "oop": {
+                "pronunciation": "oohp",
+                "case_sensitive": False
+            },
+            "tbh": {
+                "pronunciation": "to be honest",
+                "case_sensitive": False
+            },
+            "nvm": {
+                "pronunciation": "never mind",
+                "case_sensitive": False
             }
+            # TODO: handle certain context-sensitive stuff, like NO after some words causes it to say nitrogen monoxide
         }
             
         # for each pronunciation, apply to the text
         # making sure to account for whether it's case sensitive
         for trigger, data in LEGACY_PRONUNCIATION_DICTIONARY.items():
             flags = re.IGNORECASE if not data["case_sensitive"] else 0
-            text = re.sub(trigger, data["pronunciation"], text, flags=flags)
+
+            # BUG: phrases that include non-alphanumeric characters are excluded by this... how do I fix that?
+            text = re.sub(r"\b" + trigger + r"\b", data["pronunciation"], text, flags=flags)
 
         # if the whole input is "no", add a period so voice doesn't say "number"
         if text.lower() == "no":
