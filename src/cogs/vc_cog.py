@@ -70,7 +70,7 @@ class VCCog(commands.Cog):
     @discord.option(
         "input", 
         type=str, 
-        description=f"The input to read (MAX {ttsd.MAX_LEN} CHARS)"
+        description=f"The input to read"
     )
     @discord.option( # OPTIONAL ARGUMENTS NEED TO BE AFTER NON-OPTIONAL
         "voice",

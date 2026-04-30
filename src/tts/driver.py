@@ -22,7 +22,7 @@ from src.tts.returncodes import TTSReturnCode as TRC
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
-MAX_LEN = 300 # TikTok voices limit us here. TODO: dynamic length for different services?
+CHUNK_SIZE = 300 # TikTok voices limit us here. TODO: dynamic length for different services?
 TIKTOK_MAX_REPEAT = 4
 TIKTOK_VOICES = [voice.replace("_", " ") for voice in TTV._member_names_]
 TTS_VOICES = TIKTOK_VOICES + [] # you can add more :3
@@ -177,7 +177,7 @@ def adjust_pronunciation(text: str, voice: str) -> str:
         
     return text
 
-def smart_split(input_text: str, max_chunk_length: int = MAX_LEN):
+def smart_split(input_text: str, max_chunk_length: int = CHUNK_SIZE):
     """
     splits an input text by length, constrained by whitespace
 
