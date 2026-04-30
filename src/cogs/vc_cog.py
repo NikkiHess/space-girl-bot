@@ -186,8 +186,8 @@ class VCCog(commands.Cog):
 
     # EVENTS
 
-    # TODO: make it so when the bot leaves it clears the TTS queue and deletes all files for the server
-    # in order to do this we may need separate folders for each server within /downloads
+    # TODO: make it so when the bot leaves it clears the TTS queue and deletes all files for the guild
+    # in order to do this we may need separate folders for each guild within /downloads
     @discord.Cog.listener()
     async def on_voice_state_update(
         self,

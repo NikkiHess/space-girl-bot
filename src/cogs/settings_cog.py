@@ -29,12 +29,12 @@ def setup(bot: discord.Bot):
 class SettingsCog(commands.Cog):
     settings = discord.SlashCommandGroup("settings", "Modify settings")
     user_settings = settings.create_subgroup("user", "Modify your user settings")
-    pronunciations = settings.create_subgroup("pronunciations", "Adjust pronuncations of words (per-server)")
+    pronunciations = settings.create_subgroup("pronunciations", "Adjust pronuncations of words (per-guild)")
 
     def __init__(self, bot: discord.Bot):
         self.bot = bot
 
-    @pronunciations.command(name="add", description="Add a pronunciation to this server")
+    @pronunciations.command(name="add", description="Add a pronunciation to this guild")
     @discord.option(
         "voice",
         description="Which voice to edit",
@@ -45,7 +45,7 @@ class SettingsCog(commands.Cog):
     @discord.option(name="global", description="(BOT ADMIN ONLY) update the bot's global pronunciations", value=False)
     async def cmd_pronunciations_add(self, ctx: discord.ApplicationContext, voice: str, text: str, pronunciation: str, admin_global: bool = False):
         """
-        Adds a pronunciation to the Discord server within the database
+        Adds a pronunciation to the Discord guild within the database
 
         :param discord.ApplicationContext ctx: the context in which to execute
         :param str voice: the name of the voice to update
@@ -98,7 +98,7 @@ class SettingsCog(commands.Cog):
 
         await ctx.edit(content=None, embed=embed, view=None)
 
-    @pronunciations.command(name="remove", description="Remove a pronunciation from this server")
+    @pronunciations.command(name="remove", description="Remove a pronunciation from this guild")
     @discord.option(
         "voice",
         description="Which voice to edit",
@@ -108,7 +108,7 @@ class SettingsCog(commands.Cog):
     @discord.option(name="global", description="(BOT ADMIN ONLY) update the bot's global pronunciations", value=False)
     async def cmd_pronunciations_remove(self, ctx: discord.ApplicationContext, voice: str, text: str, admin_global: bool = False):
         """
-        Removes a pronunciation from the Discord server within the database
+        Removes a pronunciation from the Discord guild within the database
 
         :param discord.ApplicationContext ctx: the context in which to execute
         :param str voice: the name of the voice to update
@@ -143,7 +143,7 @@ class SettingsCog(commands.Cog):
             tsprint(f"Pronunciation for \"{text}\" not found in guild {guild_id}")
             await ctx.respond(content=f"❌ Pronunciation for \"{text}\" not found in **{guild_name}**")
         
-    @pronunciations.command(name="list", description="List all pronunciations for a voice in this server")
+    @pronunciations.command(name="list", description="List all pronunciations for a voice in this guild")
     @discord.option(
         "voice",
         description="Which voice to check pronunciations for",
@@ -152,7 +152,7 @@ class SettingsCog(commands.Cog):
     @discord.option(name="global", description="(BOT ADMIN ONLY) list the bot's global pronunciations", value=False)
     async def cmd_pronunciations_list(self, ctx: discord.ApplicationContext, voice: str, admin_global: bool = False):
         """
-        Lists all pronunciations for a specified voice within the Discord server
+        Lists all pronunciations for a specified voice within the Discord guild
         """
         # acknowledge the command internally
         await ctx.defer()

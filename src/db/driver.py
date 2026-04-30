@@ -1,5 +1,5 @@
 """
-Handles interactions with SQLite for the sake of managing per-server and per-user data
+Handles interactions with SQLite for the sake of managing per-guild and per-user data
 """
 
 # built-in
@@ -24,7 +24,7 @@ def init_db() -> None:
         cursor = connection.cursor()
 
         cursor.executescript("""
-                            CREATE TABLE IF NOT EXISTS servers (
+                            CREATE TABLE IF NOT EXISTS guilds (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 guild_id TEXT UNIQUE NOT NULL
                             );
@@ -36,13 +36,13 @@ def init_db() -> None:
 
                             CREATE TABLE IF NOT EXISTS pronunciations (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                server_id INTEGER NOT NULL,
+                                guild_id INTEGER NOT NULL,
                                 voice_id INTEGER NOT NULL,
                                 text TEXT NOT NULL,
                                 pronunciation TEXT NOT NULL,
-                                FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE,
+                                FOREIGN KEY (guild_id) REFERENCES guilds (id) ON DELETE CASCADE,
                                 FOREIGN KEY (voice_id) REFERENCES voices (id) ON DELETE CASCADE,
-                                UNIQUE(server_id, voice_id, text)
+                                UNIQUE(guild_id, voice_id, text)
                             );
 
                             CREATE TABLE IF NOT EXISTS user_settings (
@@ -52,20 +52,20 @@ def init_db() -> None:
                             )
                             """)
     
-def init_server(guild_id: int) -> int:
+def init_guild(guild_id: int) -> int:
     """
-    Initializes the server into the table if it doesn't already exist.
+    Initializes the guild into the table if it doesn't already exist.
 
-    :param int guild_id: the id of the guild/server to insert
+    :param int guild_id: the id of the guild to insert
 
-    :return int: the database's internal ID for the server
+    :return int: the database's internal ID for the guild
     """
 
     with get_conn() as connection:
         cursor = connection.cursor()
 
-        cursor.execute("INSERT OR IGNORE INTO servers (guild_id) VALUES (?)", (guild_id,))
-        cursor.execute("SELECT id FROM servers WHERE guild_id = ?", (guild_id,))
+        cursor.execute("INSERT OR IGNORE INTO guilds (guild_id) VALUES (?)", (guild_id,))
+        cursor.execute("SELECT id FROM guilds WHERE guild_id = ?", (guild_id,))
         return cursor.fetchone()[0]
 
 def init_voice(voice_name: str) -> int | None:
