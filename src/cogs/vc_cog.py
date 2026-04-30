@@ -32,7 +32,7 @@ class VCCog(commands.Cog):
     Manages all voice-related commands and the TTS background loop
     """
 
-    def __init__(self, bot):
+    def __init__(self, bot: discord.Bot):
         self.bot = bot
         self.vc_state = VCState()
         self.tts_manager = TTSManager()
@@ -61,25 +61,33 @@ class VCCog(commands.Cog):
         self.vc_state.set_vc_state(guild_id, None)
         tsprint("Bot left VC successfully")
 
-    # COMMANDS
     # TODO: make sure users can't interrupt each other (for example, longer messages can be interrupted if a user sends a message before it's all done downloading)
-    @discord.Cog.listener()
-    async def on_message(self, message: discord.Message):
+    async def handle_tts_input(
+            self,
+            content: str,
+            voice: str,
+            author: discord.Member,
+            text_channel: discord.TextChannel,
+            guild: discord.Guild, 
+            ctx: discord.ApplicationContext | None = None
+        ):
         """
-        Does TTS (soon to include Moonbase Alpha, REPO)
-        """
-        
-        # gather data from the message about its context
-        guild = message.guild
-        author = message.author
-        text_channel = message.channel
-        content = message.content
+        Handles any TTS input, either in the chat or from the command
 
-        db_user_voice = user_db.get_user_voice(author.id)
-        if db_user_voice:
-            voice = db_user_voice
-        else:
-            await text_channel.send("❌ You need to set a voice with /settings user voice")
+        :param str content: the TTS content to handle
+        :param str voice: the voice to use to read it
+        :param discord.Member author: the person who sent the TTS
+        :param discord.TextChannel text_channel: the text channel the TTS was sent in
+        :param discord.Guild guild: the guild the TTS was sent in
+        :param discord.ApplicationContext | None ctx: the context, if it exists (only for command)
+        """
+        # if this is a command... silently acknowledge it before processing, 
+        # so Discord knows we're working on it
+        if ctx: await ctx.defer()
+
+        if not voice:
+            if ctx:
+                await ctx.respond("❌ You need to specify a voice in the command or set a voice with /settings user voice")
             return
 
         # make sure vc and tts queue dicts have entries for this guild
@@ -89,7 +97,8 @@ class VCCog(commands.Cog):
         # if the user isn't in a VC, it doesn't make sense to do TTS
         author_vc = author.voice
         if author_vc is None:
-            await text_channel.send("❌ You are not in a VC.")
+            if ctx:
+                await ctx.respond("❌ You are not in a VC.")
             return
 
         if not self.vc_state.is_connected_in_channel(guild.id, author_vc.channel):
@@ -137,12 +146,81 @@ class VCCog(commands.Cog):
                 return_code = await self.tts_manager.download_and_queue(content, TTV[voice_internal], guild.id)
         
         # error return codes? make error known
+        # BUG: this error triggers for punctuation-only messages, find a way to handle that (probably add pronunciations for those cases)
         if return_code == TRC.LANGUAGE_UNSUPPORTED:
-            await text_channel.send(f"❌ Unsupported phonemes or characters in message.")
+            error_message = f"❌ Unsupported phonemes or characters in message."
+            if ctx:
+                await ctx.respond(error_message)
+            else: 
+                await text_channel.send(error_message)
         if return_code == TRC.TEMP_UNAVAILABLE:
-            await text_channel.send(f"❌ Lazypyro is temporarily unavailable.")
+            error_message = f"❌ Lazypyro is temporarily unavailable."
+            if ctx:
+                await ctx.respond(error_message)
+            else: 
+                await text_channel.send(error_message)
         if return_code == TRC.GENERIC_ERROR:
-            await text_channel.send(f"❌ Generic error from lazypyro.")
+            error_message = f"❌ Generic error from lazypyro."
+            if ctx:
+                await ctx.respond(error_message)
+            else: 
+                await text_channel.send(error_message)
+
+        if ctx:
+            # handle message intro with voice emoji and name
+            app_emoji = await get_random_app_emoji(self.bot, voice)
+            message_intro = f"🎤 {voice}"
+            if app_emoji:
+                message_intro = f"{app_emoji} {voice}"
+
+            await ctx.followup.send(
+                content=f"{message_intro}: {content}\n"
+            )
+
+    @discord.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        """
+        Does TTS (soon to include Moonbase Alpha, REPO)
+        """
+        
+        # gather data from the message about its context
+        author = message.author
+        if author.id == self.bot.user.id: return # don't let the bot handle its own messages
+        guild = message.guild
+        text_channel = message.channel
+        content = message.content
+        db_user_voice = user_db.get_user_voice(author.id)
+
+        await self.handle_tts_input(content, db_user_voice, author, text_channel, guild)
+
+    # COMMANDS    
+    @discord.slash_command(
+        name="tts",
+        description="Does TTS.",
+        dm_permission=False
+    )
+    @discord.option(
+        "input", 
+        type=str, 
+        description=f"The input to read"
+    )
+    @discord.option( # OPTIONAL ARGUMENTS NEED TO BE AFTER NON-OPTIONAL
+        "voice",
+        description="Which voice to use (optional)",
+        choices=ttsd.TTS_VOICES,
+        default=None # make argument optional
+    )
+    async def cmd_tts(self, ctx: discord.ApplicationContext, input: str, voice: str):
+        db_user_voice = user_db.get_user_voice(ctx.author.id)
+
+        await self.handle_tts_input(
+            input,
+            db_user_voice or voice, # db_user_voice has the potential to be null
+            ctx.author, 
+            ctx.channel, 
+            ctx.guild, 
+            ctx
+        )
 
     @discord.slash_command(name="join", description="Joins the voice chat you're currently in.")
     @discord.option(
