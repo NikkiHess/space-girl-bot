@@ -1,5 +1,14 @@
-requests
-aiohttp
+# for discord
 py-cord[voice]==2.8.0rc1
 audioop-lts
+
+# for TTS APIs
+requests
+aiohttp # to make API calls async
+
+# for handling emojis (rn only for TTS)
 emoji
+
+# graphing tools (for meetup graph)
+networkx # create graphs
+matplotlib # draw graphs
