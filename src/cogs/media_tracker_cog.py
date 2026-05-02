@@ -5,6 +5,8 @@
 # - also link to whatever the data source is if possible, if not fall back on IMDb
 # - maybe allow for changing this link to your preferred service (IMDb, Letterboxd, etc)
 # - somehow get show # of seasons/movie length, then have a progress bar tracking how far in the guild is
+# - also "up next" 
+# - list of streaming services the media is on (if applicable and turned on)
 # - statuses: not started/to rewatch/in progress/actively rewatching
 # - command to search by name, status, type (movie/show), etc.
 # - support for YouTube as well, since not everything is on streaming
