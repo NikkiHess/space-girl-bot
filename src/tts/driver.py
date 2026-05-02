@@ -22,7 +22,7 @@ from src.tts.returncodes import TTSReturnCode as TRC
 DOWNLOADS_DIR = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
-CHUNK_SIZE = 300 # TikTok voices limit us here. TODO: dynamic length for different services?
+MAX_CHUNK_LENGTH = 300 # TikTok voices limit us here. TODO: dynamic length for different services?
 TIKTOK_MAX_REPEAT = 4
 TIKTOK_VOICES = [voice.replace("_", " ") for voice in TTV._member_names_]
 TTS_VOICES = TIKTOK_VOICES + [] # you can add more :3
@@ -181,42 +181,47 @@ def adjust_pronunciation(text: str, voice: str) -> str:
         
     return text
 
-def smart_split(input_text: str, max_chunk_length: int = CHUNK_SIZE):
+def smart_chunk(input_text: str, max_chunk_length: int = MAX_CHUNK_LENGTH) -> list[str]:
     """
-    splits an input text by length, constrained by whitespace
+    splits an input text into chunks by length, constrained by whitespace
 
-    :param str input_text: the text to split
-    :param int max_chunk_length: the max length of the split, defaults to the program's max length
-    :return TRC: the return code, to indicate whether valid or not and in what way
+    :param str input_text: the text to split into chunks
+    :param int max_chunk_size: the max length of each chunk, defaults to the module's built-in max length
+    :return list[str]: the chunks, all less than `max_chunk_length`
     """
-    split_text = []
+    if max_chunk_length <= 0:
+        raise ValueError("Your max chunk length must be greater than 0.")
+
+    text_chunks = []
 
     # split by length constrained by whitespace
     while len(input_text) > 0:
         chunk = input_text[:max_chunk_length]
         
-        # if the chunk is maximum length, find the last whitespace character and cut it off there instead
+        # if the chunk is at maximum length, find the last whitespace character and cut it off there instead
         if len(chunk) == max_chunk_length:
+            # get all instances of whitespace
             whitespace_matches = re.finditer(r"\s", chunk)
             whitespace_matches = list(whitespace_matches)
-            last_match = {
-                "char": whitespace_matches[-1].group(0),
-                "index": whitespace_matches[-1].start()
-            }
 
-            # if we found whitespace, remove trim the max length chunk and remove it from the string
-            if last_match:
+            # if we found whitespace, remove the max length chunk from the input
+            if whitespace_matches:
+                last_match = {
+                    "char": whitespace_matches[-1].group(0),
+                    "index": whitespace_matches[-1].start()
+                }
                 chunk = input_text[:last_match["index"]]
                 input_text = input_text.replace(chunk + last_match["char"], "", 1)
             # if no whitespace, just remove the chunk
             else: input_text = input_text.removeprefix(chunk)
-        # if the chunk isn't maximum length, we can just clear the input text and split by the maximum length no problem
+        # if the chunk isn't maximum length (either the only, or the final)
+        # we can just clear the input text to end the loop
         else: input_text = ""
 
-        # finally, append the split text
-        split_text.append(chunk)
+        # finally, append the chunk
+        text_chunks.append(chunk)
 
-    return split_text
+    return text_chunks
 
 async def download_and_queue_tiktok(input_text: str, voice: TTV, tts_queue_deque: deque) -> TRC:
     """
@@ -237,7 +242,7 @@ async def download_and_queue_tiktok(input_text: str, voice: TTV, tts_queue_deque
     adjusted_input = adjust_pronunciation(input_text, voice.name)
 
     # use chunking, if necessary
-    split_text = smart_split(adjusted_input)
+    split_text = smart_chunk(adjusted_input)
 
     async with aiohttp.ClientSession():
         for index, split_item in enumerate(split_text):
