@@ -9,16 +9,40 @@ def set_tts_channel(guild_id: int, tts_channel_id: int) -> None:
     :param int tts_channel_id: the text channel ID to set as the TTS channel for the guild
     """
 
-    guild_id = dbd.init_guild(guild_id)
-
     with dbd.get_conn() as connection:
         cursor = connection.cursor()
-            
+
         cursor.execute("""
-                        INSERT OR REPLACE INTO tts_channels (guild_id, voice_id, text, pronunciation)
-                        VALUES (?, ?, ?, ?)
-                    """, (guild_id))
+                        UPDATE guilds
+                        SET tts_channel = ?
+                        WHERE guild_id = ?
+                    """, (tts_channel_id, guild_id))
         connection.commit()
+
+def get_tts_channel(guild_id: int) -> str | None:
+    """
+    Gets a user's default voice
+
+    :param int guild_id: the Discord guild ID to get the TTS channel for
+
+    :return str | None: the name of the guild's TTS channel, None if not set
+    """
+    
+    with dbd.get_conn() as connection:
+        cursor = connection.cursor()
+
+        # get internal voice id
+        cursor.execute("""
+                        SELECT tts_channel
+                        FROM guilds
+                        WHERE guild_id = ?
+                    """, (guild_id,))
+        
+        row = cursor.fetchone()
+        print(row)
+
+        # voice could be None
+        return row[0]
 
 def add_pronunciation(guild_id: int, voice_name: str, text: str, pronunciation: str) -> None:
     """

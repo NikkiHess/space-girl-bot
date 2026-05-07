@@ -10,7 +10,7 @@ def set_user_voice(user_id: int, voice_name: str) -> None:
     """
 
     voice_id = dbd.init_voice(voice_name)
-    dbd.init_user_settings(user_id) # no need to use internal user ID, just makes things confusing
+    dbd.init_user_settings(user_id)
     
     with dbd.get_conn() as connection:
         cursor = connection.cursor()
@@ -53,4 +53,3 @@ def get_user_voice(user_id: int) -> str | None:
 
         # voice could be None
         return voice[0] if voice else None
-                   

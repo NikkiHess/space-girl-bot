@@ -10,6 +10,7 @@ import os
 
 # PyPI
 import discord
+from discord import TextChannel
 from discord.ext import commands
 
 # my modules
@@ -28,13 +29,53 @@ def setup(bot: discord.Bot):
 
 class SettingsCog(commands.Cog):
     settings = discord.SlashCommandGroup("settings", "Modify settings")
-    user_settings = settings.create_subgroup("user", "Modify your user settings")
-    pronunciations = settings.create_subgroup("pronunciations", "Adjust pronuncations of words (per-guild)")
+    pronunciation = settings.create_subgroup("pronunciation")
 
     def __init__(self, bot: discord.Bot):
         self.bot = bot
 
-    @pronunciations.command(name="add", description="Add a pronunciation to this guild")
+    ##########################
+    # USER SETTINGS COMMANDS #
+    ##########################
+    @settings.command(name="voice", description="Get or set your default voice")
+    @discord.option(
+        "voice",
+        description="The voice to set your default to",
+        choices=["None"] + ttsd.TTS_VOICES,
+        default=None
+    )
+    async def cmd_settings_user_voice(self, ctx: discord.ApplicationContext, voice: str | None = None):
+        author_id = ctx.author.id
+
+        # no voice specified = get settings value
+        if not voice:
+            voice_name = user_db.get_user_voice(author_id)
+
+            if voice_name:
+                await ctx.respond(f"🗣️ Your current voice is **{voice_name}**!")
+            else:
+                await ctx.respond(f"❌ You don't currently have a default voice set.")
+                
+            return
+        
+        # if the None option is selected, convert to TYPE None
+        if voice == "None":
+            voice = None
+        # voice is guaranteed to be specified at this point
+        # set settings value
+        user_db.set_user_voice(author_id, voice)
+
+        if voice:
+            await ctx.respond(f"✅ Your default voice has been set to **{voice}**! You can now use /tts without specifying a voice.")
+        else:
+            await ctx.respond(f"✅ Your default voice has been cleared. You must now specify a voice when using /tts.")
+
+
+    ###########################
+    # GUILD SETTINGS COMMANDS #
+    ###########################
+
+    @pronunciation.command(name="add", description="Add a pronunciation to this guild")
     @discord.option(
         "voice",
         description="Which voice to edit",
@@ -43,7 +84,7 @@ class SettingsCog(commands.Cog):
     @discord.option("text", description="The text to update pronounciation for")
     @discord.option("pronunciation", description="How to pronounce the text")
     @discord.option(name="global", description="(BOT ADMIN ONLY) update the bot's global pronunciations", value=False)
-    async def cmd_pronunciations_add(self, ctx: discord.ApplicationContext, voice: str, text: str, pronunciation: str, admin_global: bool = False):
+    async def cmd_pronunciation_add(self, ctx: discord.ApplicationContext, voice: str, text: str, pronunciation: str, admin_global: bool = False):
         """
         Adds a pronunciation to the Discord guild within the database
 
@@ -98,7 +139,7 @@ class SettingsCog(commands.Cog):
 
         await ctx.edit(content=None, embed=embed, view=None)
 
-    @pronunciations.command(name="remove", description="Remove a pronunciation from this guild")
+    @pronunciation.command(name="remove", description="Remove a pronunciation from this guild")
     @discord.option(
         "voice",
         description="Which voice to edit",
@@ -106,7 +147,7 @@ class SettingsCog(commands.Cog):
     )
     @discord.option("text", description="The text to remove the pronunciation for")
     @discord.option(name="global", description="(BOT ADMIN ONLY) update the bot's global pronunciations", value=False)
-    async def cmd_pronunciations_remove(self, ctx: discord.ApplicationContext, voice: str, text: str, admin_global: bool = False):
+    async def cmd_pronunciation_remove(self, ctx: discord.ApplicationContext, voice: str, text: str, admin_global: bool = False):
         """
         Removes a pronunciation from the Discord guild within the database
 
@@ -143,14 +184,14 @@ class SettingsCog(commands.Cog):
             tsprint(f"Pronunciation for \"{text}\" not found in guild {guild_id}")
             await ctx.respond(content=f"❌ Pronunciation for \"{text}\" not found in **{guild_name}**")
         
-    @pronunciations.command(name="list", description="List all pronunciations for a voice in this guild")
+    @pronunciation.command(name="list", description="List all pronunciations for a voice in this guild")
     @discord.option(
         "voice",
         description="Which voice to check pronunciations for",
         choices=["All Voices"] + ttsd.TTS_VOICES
     )
     @discord.option(name="global", description="(BOT ADMIN ONLY) list the bot's global pronunciations", value=False)
-    async def cmd_pronunciations_list(self, ctx: discord.ApplicationContext, voice: str, admin_global: bool = False):
+    async def cmd_pronunciation_list(self, ctx: discord.ApplicationContext, voice: str, admin_global: bool = False):
         """
         Lists all pronunciations for a specified voice within the Discord guild
         """
@@ -209,38 +250,31 @@ class SettingsCog(commands.Cog):
         else:
             await ctx.respond(content=f"❌ No pronunciations found for **{voice}** in **{guild_name}**!")
 
-    @user_settings.command(name="voice", description="Get or set your default voice")
+    @settings.command(name="tts_channel", description="Get or set the guild's TTS text channel")
     @discord.option(
-        "voice",
-        description="The voice to set your default to",
-        choices=["None"] + ttsd.TTS_VOICES,
-        default=None
+        "tts_channel",
+        description="The text channel to read messages from",
+        default=None,
     )
-    async def cmd_settings_user_voice(self, ctx: discord.ApplicationContext, voice: str | None = None):
-        author_id = ctx.author.id
+    async def cmd_settings_tts_channel(self, ctx: discord.ApplicationContext, tts_channel: TextChannel | None = None):
+        guild_id = ctx.guild.id
 
-        # no voice specified = get settings value
-        if not voice:
-            voice_name = user_db.get_user_voice(author_id)
+        # no channel specified = get settings value
+        if not tts_channel:
+            tts_channel_id = guild_db.get_tts_channel(guild_id)
 
-            if voice_name:
-                await ctx.respond(f"🗣️ Your current voice is **{voice_name}**!")
+            if tts_channel_id:
+                await ctx.respond(f"🗣️ This guild's TTS channel is <#{tts_channel_id}>!")
             else:
-                await ctx.respond(f"❌ You don't currently have a default voice set.")
+                await ctx.respond(f"❌ This guild does not currently have a TTS channel.")
                 
             return
-        
-        # if the None option is selected, convert to TYPE None
-        if voice == "None":
-            voice = None
-        # voice is guaranteed to be specified at this point
-        # set settings value
-        user_db.set_user_voice(author_id, voice)
-
-        if voice:
-            await ctx.respond(f"✅ Your default voice has been set to **{voice}**! You can now use /tts without specifying a voice.")
+        # channel specified = set settings value
         else:
-            await ctx.respond(f"✅ Your default voice has been cleared. You must now specify a voice when using /tts.")
+            tts_channel_id = tts_channel.id
+
+            guild_db.set_tts_channel(guild_id, tts_channel_id)
+            await ctx.respond(f"✅ This guild's TTS channel has been set to <#{tts_channel_id}>! The bot will now read all messages in that channel from VC members.")
 
     @discord.Cog.listener()
     async def on_ready(self):

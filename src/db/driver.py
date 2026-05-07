@@ -26,7 +26,8 @@ def init_db() -> None:
         cursor.executescript("""
                             CREATE TABLE IF NOT EXISTS guilds (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                guild_id TEXT UNIQUE NOT NULL
+                                guild_id TEXT UNIQUE NOT NULL,
+                                tts_channel INTEGER
                             );
 
                             CREATE TABLE IF NOT EXISTS voices (
