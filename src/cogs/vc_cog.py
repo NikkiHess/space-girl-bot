@@ -12,7 +12,7 @@ import discord
 from discord.ext import commands
 
 # my modules
-from src.db import user_db
+from src.db import user_db, guild_db
 from src.tts import driver as ttsd
 from src.tts.voices import TikTokVoice as TTV
 from src.utils.logging_utils import timestamp_print as tsprint
@@ -101,10 +101,9 @@ class VCCog(commands.Cog):
                 await ctx.respond("❌ You are not in a VC.")
             return
 
-        if not self.vc_state.is_connected_in_channel(guild.id, author_vc.channel):
-            await self.try_leave_vc(guild.id)
-            vc = await author_vc.channel.connect(reconnect=False)
-            self.vc_state.set_vc_state(guild.id, vc)
+        await self.try_leave_vc(guild.id)
+        vc = await author_vc.channel.connect(reconnect=False)
+        self.vc_state.set_vc_state(guild.id, vc)
 
         # --------------------------------
 
@@ -191,7 +190,14 @@ class VCCog(commands.Cog):
         content = message.content
         db_user_voice = user_db.get_user_voice(author.id)
 
-        await self.handle_tts_input(content, db_user_voice, author, text_channel, guild)
+        # get information about the guild's TTS channel if it exists
+        db_guild_tts_channel = guild_db.get_tts_channel(guild.id)
+
+        # if the guild does not have a tts channel, don't try to do TTS
+        if not db_guild_tts_channel:
+            return
+        if text_channel.id == db_guild_tts_channel:
+            await self.handle_tts_input(content, db_user_voice, author, text_channel, guild)
 
     # COMMANDS    
     @discord.slash_command(

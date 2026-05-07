@@ -1,28 +1,23 @@
 # my code
 from src.db import driver as dbd
 
-# TODO: finish this, this does not have/do what it should
-# it's a skeleton don't judge me
-def set_tts_channel(guild_id: int, voice_name: str, text: str, pronunciation: str) -> None:
+def set_tts_channel(guild_id: int, tts_channel_id: int) -> None:
     """
     Sets the guild's designated TTS channel 
 
     :param int guild_id: the guild ID to set the TTS channel for
-    :param str voice_name: the voice name to insert the pronunciation into, "All Voices" will modify the global voice dictionary
-    :param str text: the text to pronounce differently
-    :param str pronunciation: the pronunciation from that text
+    :param int tts_channel_id: the text channel ID to set as the TTS channel for the guild
     """
 
     guild_id = dbd.init_guild(guild_id)
-    voice_id = dbd.init_voice(voice_name)
 
     with dbd.get_conn() as connection:
         cursor = connection.cursor()
             
         cursor.execute("""
-                        INSERT OR REPLACE INTO pronunciations (guild_id, voice_id, text, pronunciation)
+                        INSERT OR REPLACE INTO tts_channels (guild_id, voice_id, text, pronunciation)
                         VALUES (?, ?, ?, ?)
-                    """, (guild_id, voice_id, text, pronunciation))
+                    """, (guild_id))
         connection.commit()
 
 def add_pronunciation(guild_id: int, voice_name: str, text: str, pronunciation: str) -> None:
