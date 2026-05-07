@@ -198,6 +198,10 @@ def adjust_pronunciation(text: str, voice: str) -> str:
             "nvm": {
                 "pronunciation": "never mind",
                 "case_sensitive": False
+            },
+            "idk": {
+                "pronunciation": "I don't know",
+                "case_sensitive": False
             }
             # TODO: handle certain context-sensitive stuff, like NO after some words causes it to say nitrogen monoxide
         }
