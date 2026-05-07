@@ -8,7 +8,7 @@ the components of text-to-speech and voice chat.
 from typing import Optional
 
 # Pycord
-import discord
+import discord, discord.voice
 from discord.ext import commands
 
 # my modules
@@ -95,15 +95,29 @@ class VCCog(commands.Cog):
         self.tts_manager.init_guild(guild.id)
 
         # if the user isn't in a VC, it doesn't make sense to do TTS
-        author_vc = author.voice
-        if author_vc is None:
+        author_voice_state = author.voice
+        if not author_voice_state:
             if ctx:
                 await ctx.respond("❌ You are not in a VC.")
             return
 
-        await self.try_leave_vc(guild.id)
-        vc = await author_vc.channel.connect(reconnect=False)
-        self.vc_state.set_vc_state(guild.id, vc)
+        vc = None
+        # if the bot is not in the author's VC according to Discord
+        if not guild.get_member(self.bot.user.id) in author_voice_state.channel.members:
+            # try leaving the current VC
+            await self.try_leave_vc(guild.id, ctx)
+            # and join the author's VC
+            vc = await author_voice_state.channel.connect(reconnect=False)
+        # they are in the VC in Discord, but not in our code
+        # this only happens if the bot is restarted in the middle of a voice chat
+        # which is possible
+        elif not self.vc_state.get_vc_state(guild.id):
+            # restore voice state by silently reconnecting
+            vc = await author_voice_state.channel.connect(reconnect=False)
+
+        # update the internal tracking if necessary
+        if vc:
+            self.vc_state.set_vc_state(guild.id, vc)
 
         # --------------------------------
 
