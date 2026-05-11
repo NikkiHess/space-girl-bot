@@ -8,11 +8,11 @@ def set_user_voice(user_id: int, voice_name: str) -> None:
     :param int user_id: the Discord user ID to set the voice for
     :param str voice_name: the (whitespace-included) name of this voice
     """
-
-    voice_id = dbd.init_voice(voice_name)
-    dbd.init_user_settings(user_id)
     
     with dbd.get_connection() as connection:
+        voice_id = dbd.init_voice(voice_name, connection)
+        dbd.init_user_settings(user_id, connection)
+
         cursor = connection.cursor()
 
         cursor.execute("""
@@ -30,7 +30,6 @@ def get_user_voice(user_id: int) -> str | None:
 
     :return str | None: the name of the user's default voice, None if not set
     """
-    
     with dbd.get_connection() as connection:
         cursor = connection.cursor()
 
