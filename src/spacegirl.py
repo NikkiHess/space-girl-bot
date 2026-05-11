@@ -74,7 +74,6 @@ async def on_command_error(ctx: discord.ApplicationContext, error):
     """
     Handle uncaught exceptions in the bot
     """
-
     if isinstance(error, aiohttp.ClientConnectorDNSError):
         await ctx.respond("⚠️ Network error: unable to reach Discord. Try again later.")
         tsprint(f"⚠️ Network error: unable to reach Discord. Try again later.\n{error}")
