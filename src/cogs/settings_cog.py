@@ -179,7 +179,7 @@ class SettingsCog(commands.Cog):
             )
             embed.add_field(name = "Text", value = text)
 
-            await ctx.respond(content=None, embed=embed, )
+            await ctx.respond(content=None, embed=embed)
         else:
             tsprint(f"Pronunciation for \"{text}\" not found in guild {guild_id}")
             await ctx.respond(content=f"❌ Pronunciation for \"{text}\" not found in **{guild_name}**")
@@ -246,7 +246,7 @@ class SettingsCog(commands.Cog):
             embed = build_embed(current_page, num_pages)
 
             page_nav_view = PageNavView(num_pages, build_embed)
-            await ctx.respond(embed=embed, view=page_nav_view, )
+            await ctx.respond(embed=embed, view=page_nav_view)
         else:
             await ctx.respond(content=f"❌ No pronunciations found for **{voice}** in **{guild_name}**!")
 
