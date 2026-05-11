@@ -89,3 +89,20 @@ def init_voice(voice_name: str, connection: Connection = get_connection()) -> in
     
     row = cursor.fetchone()
     return row[0] if row else None
+
+def init_user_settings(user_id: int, connection: Connection = get_connection()) -> int:
+    """
+    Initializes the user (id) into user_settings
+
+    :param int user_id: the Discord user id to insert into the table
+    :param Connection connection: the sqlite3 connection to use. creates a new one if not specified.
+
+    :return int: the database's internal ID for the user('s settings)
+    """
+
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        
+        cursor.execute("INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)", (user_id,))
+        cursor.execute("SELECT id FROM user_settings WHERE user_id = ?", (user_id,))
+        return cursor.fetchone()[0]
