@@ -22,7 +22,6 @@ def init_db(connection: Connection = get_connection()) -> None:
 
     :param Connection connection: the sqlite3 connection to use. creates a new one if not specified.
     """
-
     cursor = connection.cursor()
 
     cursor.executescript(
@@ -81,7 +80,6 @@ def init_voice(voice_name: str, connection: Connection = get_connection()) -> in
     
     :return int: the database's internal ID for the new voice
     """
-
     cursor = connection.cursor()
 
     cursor.execute("INSERT OR IGNORE INTO voices (name) VALUES (?)", (voice_name,))
@@ -99,10 +97,8 @@ def init_user_settings(user_id: int, connection: Connection = get_connection()) 
 
     :return int: the database's internal ID for the user('s settings)
     """
-
-    with get_connection() as connection:
-        cursor = connection.cursor()
-        
-        cursor.execute("INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)", (user_id,))
-        cursor.execute("SELECT id FROM user_settings WHERE user_id = ?", (user_id,))
-        return cursor.fetchone()[0]
+    cursor = connection.cursor()
+    
+    cursor.execute("INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)", (user_id,))
+    cursor.execute("SELECT id FROM user_settings WHERE user_id = ?", (user_id,))
+    return cursor.fetchone()[0]

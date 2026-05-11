@@ -29,8 +29,6 @@ def get_tts_channel(guild_id: int) -> str | None:
     :return str | None: the name of the guild's TTS channel, None if not set
     """
     with dbd.get_connection() as connection:
-        dbd.init_guild(guild_id, connection)
-
         cursor = connection.cursor()
 
         # get internal voice id
