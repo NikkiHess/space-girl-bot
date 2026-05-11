@@ -77,9 +77,10 @@ async def on_command_error(ctx: discord.ApplicationContext, error):
 
     if isinstance(error, aiohttp.ClientConnectorDNSError):
         await ctx.respond("⚠️ Network error: unable to reach Discord. Try again later.")
+        tsprint(f"⚠️ Network error: unable to reach Discord. Try again later.\n{error}")
     else:
         # fallback logging
-        print(f"⚠️ Something went wrong!\n{error}")
+        tsprint(f"⚠️ Something went wrong!\n{error}")
 
 if __name__ == "__main__":
     # load in our token
