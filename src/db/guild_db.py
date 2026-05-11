@@ -8,8 +8,9 @@ def set_tts_channel(guild_id: int, tts_channel_id: int) -> None:
     :param int guild_id: the guild ID to set the TTS channel for
     :param int tts_channel_id: the text channel ID to set as the TTS channel for the guild
     """
+    with dbd.get_connection() as connection:
+        dbd.init_guild(guild_id, connection)
 
-    with dbd.get_conn() as connection:
         cursor = connection.cursor()
 
         cursor.execute("""
@@ -27,8 +28,9 @@ def get_tts_channel(guild_id: int) -> str | None:
 
     :return str | None: the name of the guild's TTS channel, None if not set
     """
-    
-    with dbd.get_conn() as connection:
+    with dbd.get_connection() as connection:
+        dbd.init_guild(guild_id, connection)
+
         cursor = connection.cursor()
 
         # get internal voice id
@@ -53,11 +55,10 @@ def add_pronunciation(guild_id: int, voice_name: str, text: str, pronunciation: 
     :param str text: the text to pronounce differently
     :param str pronunciation: the pronunciation from that text
     """
+    with dbd.get_connection() as connection:
+        guild_id = dbd.init_guild(guild_id, connection)
+        voice_id = dbd.init_voice(voice_name, connection)
 
-    guild_id = dbd.init_guild(guild_id)
-    voice_id = dbd.init_voice(voice_name)
-
-    with dbd.get_conn() as connection:
         cursor = connection.cursor()
             
         cursor.execute("""
@@ -76,7 +77,7 @@ def get_pronunciation(guild_id: int, voice_name: str, text: str) -> str | None:
 
     :returns str | None: the pronunciation if it exists, otherwise None
     """
-    with dbd.get_conn() as connection:
+    with dbd.get_connection() as connection:
         cursor = connection.cursor()
             
         cursor.execute(f"""
@@ -99,8 +100,7 @@ def remove_pronunciation(guild_id: int, voice_name: str, text: str) -> bool:
 
     :return bool: True if a pronunciation was removed, False if none existed to begin with
     """
-
-    with dbd.get_conn() as connection:
+    with dbd.get_connection() as connection:
         cursor = connection.cursor()
             
         cursor.execute("""
@@ -128,7 +128,7 @@ def list_pronunciations(guild_id: int, voice_name: str) -> dict[str, str]:
 
     :return dict[str, str]: the pronunciations found in the database
     """
-    with dbd.get_conn() as connection:
+    with dbd.get_connection() as connection:
         cursor = connection.cursor()
 
         # grab internal guild id based on the Discord guild_id

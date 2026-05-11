@@ -12,7 +12,7 @@ def set_user_voice(user_id: int, voice_name: str) -> None:
     voice_id = dbd.init_voice(voice_name)
     dbd.init_user_settings(user_id)
     
-    with dbd.get_conn() as connection:
+    with dbd.get_connection() as connection:
         cursor = connection.cursor()
 
         cursor.execute("""
@@ -31,7 +31,7 @@ def get_user_voice(user_id: int) -> str | None:
     :return str | None: the name of the user's default voice, None if not set
     """
     
-    with dbd.get_conn() as connection:
+    with dbd.get_connection() as connection:
         cursor = connection.cursor()
 
         # get internal voice id
