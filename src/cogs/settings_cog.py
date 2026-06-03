@@ -34,6 +34,10 @@ class SettingsCog(commands.Cog):
     def __init__(self, bot: discord.Bot):
         self.bot = bot
 
+    @discord.Cog.listener()
+    async def on_ready(self):
+        tsprint("Settings Cog is now ready!")
+
     ##########################
     # USER SETTINGS COMMANDS #
     ##########################
@@ -275,7 +279,3 @@ class SettingsCog(commands.Cog):
 
             guild_db.set_tts_channel(guild_id, tts_channel_id)
             await ctx.respond(f"✅ This guild's TTS channel has been set to <#{tts_channel_id}>! The bot will now read all messages in that channel from VC members.")
-
-    @discord.Cog.listener()
-    async def on_ready(self):
-        tsprint("Settings Cog is now ready!")
