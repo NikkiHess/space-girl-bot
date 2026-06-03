@@ -34,6 +34,10 @@ class SettingsCog(commands.Cog):
     def __init__(self, bot: discord.Bot):
         self.bot = bot
 
+    @discord.Cog.listener()
+    async def on_ready(self):
+        tsprint("Settings Cog is now ready!")
+
     @pronunciations.command(name="add", description="Add a pronunciation to this server")
     @discord.option(
         "voice",
@@ -241,7 +245,3 @@ class SettingsCog(commands.Cog):
             await ctx.respond(f"✅ Your default voice has been set to **{voice}**! You can now use /tts without specifying a voice.")
         else:
             await ctx.respond(f"✅ Your default voice has been cleared. You must now specify a voice when using /tts.")
-
-    @discord.Cog.listener()
-    async def on_ready(self):
-        tsprint("Settings Cog is now ready!")
