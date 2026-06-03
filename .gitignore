@@ -1,6 +1,7 @@
 # Custom
-depend/*
-database/*
+depend/
+database/
+downloads/
 admins.json
 *.zip
 config/discord.json
@@ -18,7 +19,6 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-downloads/
 eggs/
 .eggs/
 lib/
