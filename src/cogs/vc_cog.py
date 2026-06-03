@@ -38,6 +38,19 @@ class VCCog(commands.Cog):
         self.tts_manager = TTSManager()
         self.bg_task = TTSBackgroundTask()
 
+    @discord.Cog.listener()
+    async def on_ready(self):
+        tsprint("Initializing guild VC list...")
+
+        for guild in self.bot.guilds:
+            self.vc_state.init_guild(guild.id)
+            self.tts_manager.init_guild(guild.id)
+        
+        tsprint("Creating TTS queue task in event loop...")
+        self.bg_task.start(self.bot, self.vc_state, self.tts_manager)
+
+        tsprint("VC Cog is now ready!")
+
     # HELPERS
     async def try_leave_vc(self, guild_id: int, ctx: Optional[discord.ApplicationContext] = None):
         """
@@ -254,16 +267,3 @@ class VCCog(commands.Cog):
         if not non_bot_members:
             tsprint(f"Nobody in VC {vc.channel.name} except bots. Leaving.")
             await self.try_leave_vc(guild_id)
-
-    @discord.Cog.listener()
-    async def on_ready(self):
-        tsprint("Initializing guild VC list...")
-
-        for guild in self.bot.guilds:
-            self.vc_state.init_guild(guild.id)
-            self.tts_manager.init_guild(guild.id)
-        
-        tsprint("Creating TTS queue task in event loop...")
-        self.bg_task.start(self.bot, self.vc_state, self.tts_manager)
-
-        tsprint("VC Cog is now ready!")
